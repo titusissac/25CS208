@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>25CS208 Web Technology - Class Test</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#eef2f7;color:#172033}
+body{display:flex;flex-direction:column}
+header{height:54px;flex:none;background:#172033;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+header h1{font-size:18px;margin:0}
+header .info{font-size:13px}
+.workspace{height:calc(100vh - 54px);display:grid;grid-template-columns:29% 39% 32%;gap:1px;background:#cbd5e1}
+.panel{background:#fff;min-width:0;min-height:0;overflow:hidden}
+.panel-title{height:38px;padding:10px 13px;background:#e8eef6;border-bottom:1px solid #cbd5e1;font-weight:bold;font-size:13px}
+.question-content{height:calc(100% - 38px);overflow:auto;padding:15px 18px}
+.question-content h2{font-size:20px;margin:0 0 8px}
+.question-content h3{font-size:14px;margin:16px 0 7px}
+.question-content p,.question-content li{font-size:13px;line-height:1.45}
+.question-content li{margin-bottom:6px}
+.editor-panel{display:flex;flex-direction:column}
+.tabs{height:39px;flex:none;background:#1f2937;display:flex}
+.tab{border:0;background:transparent;color:#cbd5e1;padding:0 16px;cursor:pointer;font-weight:bold}
+.tab.active{background:#fff;color:#172033}
+.editor{display:none;flex:1;min-height:0}
+.editor.active{display:flex}
+textarea{width:100%;height:100%;resize:none;border:0;outline:0;padding:14px;background:#111827;color:#e5e7eb;font:13px Consolas,"Courier New",monospace;line-height:1.5}
+.actions{height:48px;flex:none;display:flex;align-items:center;gap:7px;padding:7px;background:#f8fafc;border-top:1px solid #cbd5e1}
+.action{border:0;border-radius:5px;padding:7px 14px;cursor:pointer;font-weight:bold}
+.run{background:#2563eb;color:#fff}.reset{background:#e2e8f0}.submit{background:#16a34a;color:#fff}
+.right{display:flex;flex-direction:column}
+.output{height:55%;min-height:0;border-bottom:1px solid #cbd5e1}
+.output-frame{height:calc(100% - 38px);width:100%;border:0;background:#fff}
+.tests{height:45%;min-height:0;display:flex;flex-direction:column}
+.test-header{display:flex;justify-content:space-between;align-items:center}
+.test-list{overflow:auto;flex:1}
+.test{display:grid;grid-template-columns:28px 1fr 48px;align-items:center;gap:5px;padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}
+.status{font-size:17px;text-align:center;font-weight:bold}
+.pass{color:#16a34a}.fail{color:#dc2626}
+.marks{text-align:right;font-weight:bold}
+.total{height:38px;flex:none;padding:10px 12px;background:#172033;color:#fff;display:flex;justify-content:space-between;font-size:13px;font-weight:bold}
+.score{font-weight:bold}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>25CS208 Web Technology — Class Test 1</h1>
+  <div class="info">Basic HTML Structure &nbsp;|&nbsp; Total: 10 Marks</div>
+</header>
+
+<div class="workspace">
+
+<!-- QUESTION -->
+<section class="panel">
+  <div class="panel-title">QUESTION</div>
+  <div class="question-content">
+    <h2>Basic HTML Structure</h2>
+    <p>Create an HTML webpage according to the following requirements.</p>
+
+    <h3>Requirements</h3>
+    <ol>
+      <li>Set the page title as <b>Test1</b>.</li>
+      <li>Display <b>25CS208 Web Technology</b> as the main heading.</li>
+      <li>Display <b>Module 1</b> and <b>HTML</b> as subsequent headings.</li>
+      <li>Create a 5-line paragraph with at least two line breaks.</li>
+      <li>Encapsulate the main content inside a <b>div</b>.</li>
+      <li>Place an <b>hr</b> at the beginning and ending of <b>main</b>.</li>
+      <li>Create an ordered list with 5 items using reversed Roman numerals.</li>
+      <li>Create an unordered list with 5 items.</li>
+      <li>Create a description list with 3 terms and descriptions.</li>
+      <li>Create a 3-row and 4-column table.</li>
+      <li>Merge the first-column cells of rows 1 and 2.</li>
+      <li>Merge the first three columns of the last row.</li>
+      <li>Apply a background color and text color to the body.</li>
+    </ol>
+
+    <h3>Table Numbering</h3>
+    <p>Number the table cells consecutively from the top-left, taking merged cells into account.</p>
+
+    <h3>Evaluation</h3>
+    <p>The test cases shown below are evaluated automatically when you click <b>Run Code</b>.</p>
+  </div>
+</section>
+
+<!-- CODE -->
+<section class="panel editor-panel">
+  <div class="panel-title">CODE EDITOR</div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('htmlEditor',this)">HTML</button>
+    <button class="tab" onclick="switchTab('cssEditor',this)">CSS</button>
+    <button class="tab" onclick="switchTab('jsEditor',this)">JavaScript</button>
+  </div>
+
+  <div id="htmlEditor" class="editor active">
+    <textarea id="htmlCode" spellcheck="false"></textarea>
+  </div>
+  <div id="cssEditor" class="editor">
+    <textarea id="cssCode" spellcheck="false"></textarea>
+  </div>
+  <div id="jsEditor" class="editor">
+    <textarea id="jsCode" spellcheck="false"></textarea>
+  </div>
+
+  <div class="actions">
+    <button class="action run" onclick="runCode()">▶ Run Code</button>
+    <button class="action reset" onclick="resetCode()">↺ Reset</button>
+    <button class="action submit" onclick="submitTest()">✓ Submit Test</button>
+  </div>
+</section>
+
+<!-- OUTPUT + TEST CASES -->
+<section class="panel right">
+
+  <div class="output">
+    <div class="panel-title">LIVE OUTPUT</div>
+    <iframe id="outputFrame" class="output-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+
+  <div class="tests">
+    <div class="panel-title test-header">
+      <span>TEST CASES</span>
+      <span class="score" id="score">0 / 10</span>
+    </div>
+
+    <div id="testList" class="test-list"></div>
+
+    <div class="total">
+      <span>Total Score</span>
+      <span id="totalScore">0 / 10</span>
+    </div>
+  </div>
+
+</section>
+</div>
+
+<script>
+const starterHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test1</title>
+</head>
+<body>
+<div>
+<main>
+<hr>
+<h1>25CS208 Web Technology</h1>
+<h2>Module 1</h2>
+<h3>HTML</h3>
+<p>
+HTML is the standard markup language used to create web pages.<br>
+It provides structure to web content.<br>
+HTML uses elements and tags.<br>
+Lists and tables organize information.<br>
+HTML is the foundation of web development.
+</p>
+<h2>Ordered List</h2>
+<ol type="I" reversed>
+<li>Forms</li><li>Tables</li><li>Lists</li><li>Headings</li><li>Basic Elements</li>
+</ol>
+<h2>Unordered List</h2>
+<ul>
+<li>HTML</li><li>CSS</li><li>JavaScript</li><li>Bootstrap</li><li>React</li>
+</ul>
+<h2>Description List</h2>
+<dl>
+<dt>Element</dt><dd>A building block of HTML.</dd>
+<dt>Attribute</dt><dd>Provides additional information.</dd>
+<dt>Tag</dt><dd>Defines an HTML element.</dd>
+</dl>
+<h2>Table</h2>
+<table>
+<tr><td rowspan="2">1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><td>5</td><td>6</td><td>7</td></tr>
+<tr><td colspan="3">8</td><td>9</td></tr>
+</table>
+<hr>
+</main>
+</div>
+</body>
+</html>`;
+
+const starterCSS = `body {
+background-color: #eef6ff;
+color: #172033;
+font-family: Arial, sans-serif;
+}
+table { border-collapse: collapse; width: 100%; }
+td { border: 1px solid black; padding: 10px; text-align: center; }`;
+
+const starterJS = `// JavaScript is not required for this question.`;
+
+document.getElementById("htmlCode").value = starterHTML;
+document.getElementById("cssCode").value = starterCSS;
+document.getElementById("jsCode").value = starterJS;
+
+const tests = [
+["Page title is Test1",0.5,d=>d.title.trim()==="Test1"],
+["H1 is 25CS208 Web Technology",0.5,d=>[...d.querySelectorAll("h1")].some(e=>e.textContent.trim()==="25CS208 Web Technology")],
+["Module 1 heading exists",0.5,d=>[...d.querySelectorAll("h1,h2,h3,h4,h5,h6")].some(e=>e.textContent.trim()==="Module 1")],
+["HTML heading exists",0.5,d=>[...d.querySelectorAll("h1,h2,h3,h4,h5,h6")].some(e=>e.textContent.trim()==="HTML")],
+["Paragraph has at least 5 lines",0.5,d=>{let p=d.querySelector("p");return p&&p.querySelectorAll("br").length>=4}],
+["Paragraph has at least 2 line breaks",0.5,d=>{let p=d.querySelector("p");return p&&p.querySelectorAll("br").length>=2}],
+["Main content is inside a div",0.5,d=>{let m=d.querySelector("main");return !!m&&m.parentElement.tagName==="DIV"}],
+["HR is at beginning of main",0.5,d=>{let m=d.querySelector("main");return !!m&&m.children[0].tagName==="HR"}],
+["HR is at ending of main",0.5,d=>{let m=d.querySelector("main");return !!m&&m.children[m.children.length-1].tagName==="HR"}],
+["Ordered list has 5 items",0.5,d=>{let o=d.querySelector("ol");return !!o&&o.children.length===5}],
+["Ordered list uses Roman numerals",0.5,d=>d.querySelector("ol")?.getAttribute("type")==="I"],
+["Ordered list is reversed",0.5,d=>d.querySelector("ol")?.hasAttribute("reversed")],
+["Unordered list has 5 items",0.5,d=>{let u=d.querySelector("ul");return !!u&&u.children.length===5}],
+["Description list has 3 terms and descriptions",0.5,d=>{let l=d.querySelector("dl");return !!l&&l.querySelectorAll(":scope > dt").length===3&&l.querySelectorAll(":scope > dd").length===3}],
+["Table has 3 rows",0.5,d=>{let t=d.querySelector("table");return !!t&&t.rows.length===3}],
+["Table has 4 effective columns",0.5,d=>{let t=d.querySelector("table");return !!t&&[...t.rows].every(r=>[...r.cells].reduce((n,c)=>n+c.colSpan,0)===4)}],
+["First column uses rowspan=2",1,d=>d.querySelector("table")?.rows[0]?.cells[0]?.rowSpan===2],
+["Last row uses colspan=3",1,d=>d.querySelector("table")?.rows[2]?.cells[0]?.colSpan===3],
+["Body has background color",0.5,d=>{let s=d.defaultView.getComputedStyle(d.body);return s.backgroundColor!=="rgba(0, 0, 0, 0)"&&s.backgroundColor!=="transparent"}],
+["Body has text color",0.5,d=>d.defaultView.getComputedStyle(d.body).color!==""]];
+
+function switchTab(id,button){
+document.querySelectorAll(".editor").forEach(e=>e.classList.remove("active"));
+document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+button.classList.add("active");
+}
+
+function makeDocument(){
+let html=document.getElementById("htmlCode").value;
+let css=document.getElementById("cssCode").value;
+let js=document.getElementById("jsCode").value;
+if(!/<style[\s>]/i.test(html)){
+let style="<style>"+css+"</style>";
+html=/<\/head>/i.test(html)?html.replace(/<\/head>/i,style+"</head>"):style+html;
+}
+if(js.trim()&&!/JavaScript is not required/i.test(js)){
+let scriptTag="<script>"+js.replace(/<\/script/gi,"<\\/script")+"</scr"+"ipt>";
+html=/<\/body>/i.test(html)?html.replace(/<\/body>/i,scriptTag+"</body>"):html+scriptTag;
+}
+return html;
+}
+
+function runCode(){
+let frame=document.getElementById("outputFrame");
+frame.onload=evaluate;
+frame.srcdoc=makeDocument();
+}
+
+function evaluate(){
+let frame=document.getElementById("outputFrame");
+let d=frame.contentDocument;
+let list=document.getElementById("testList");
+list.innerHTML="";
+let score=0,total=0;
+
+tests.forEach((t,i)=>{
+let passed=false;
+try{passed=Boolean(t[2](d));}catch(e){passed=false;}
+total+=t[1];
+if(passed)score+=t[1];
+
+let row=document.createElement("div");
+row.className="test";
+row.innerHTML=
+'<div class="status '+(passed?"pass":"fail")+'">'+(passed?"✓":"✗")+'</div>'+
+'<div>'+(i+1)+". "+t[0]+'</div>'+
+'<div class="marks">'+t[1]+"</div>";
+list.appendChild(row);
+});
+
+document.getElementById("score").textContent=score+" / "+total;
+document.getElementById("totalScore").textContent=score+" / "+total;
+}
+
+function resetCode(){
+document.getElementById("htmlCode").value=starterHTML;
+document.getElementById("cssCode").value=starterCSS;
+document.getElementById("jsCode").value=starterJS;
+runCode();
+}
+
+function submitTest(){
+runCode();
+setTimeout(function(){
+alert("Test submitted.\nScore: "+document.getElementById("totalScore").textContent);
+},700);
+}
+
+window.addEventListener("load",runCode);
+</script>
+</body>
+</html>
