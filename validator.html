@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markup Check — HTML Structure Diagnostics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:#0a0e14;
+  --bg-panel:#10161f;
+  --bg-raised:#161d29;
+  --border:#212b39;
+  --border-soft:#1a222e;
+  --text-primary:#e6ebf2;
+  --text-muted:#7688a0;
+  --text-dim:#4d5c72;
+  --accent:#3fb4e6;
+  --accent-soft:rgba(63,180,230,.12);
+  --error:#ff5d6c;
+  --error-soft:rgba(255,93,108,.1);
+  --warning:#ffb454;
+  --warning-soft:rgba(255,180,84,.1);
+  --ok:#39d98a;
+  --ok-soft:rgba(57,217,138,.1);
+  --mono:'JetBrains Mono',Consolas,Menlo,monospace;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:var(--sans);background:var(--bg-deep);color:var(--text-primary);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ===== Header ===== */
+header{
+  height:56px;background:var(--bg-panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{
+  width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#2176a8);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;
+  font-size:13px;color:#04121a;flex-shrink:0;
+}
+.brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
+.brand span{display:block;font-size:11px;color:var(--text-muted);margin-top:1px;font-family:var(--mono)}
+.header-actions{display:flex;align-items:center;gap:10px}
+.file-label{
+  font-family:var(--mono);font-size:12px;color:var(--text-muted);background:var(--bg-raised);
+  border:1px solid var(--border);padding:7px 12px;border-radius:6px;cursor:pointer;transition:.15s;
+}
+.file-label:hover{border-color:var(--accent);color:var(--text-primary)}
+.btn{
+  font-family:var(--mono);font-size:12px;font-weight:600;border-radius:6px;border:1px solid transparent;
+  padding:8px 14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--accent);color:#04121a}
+.btn-primary:hover{background:#59c2f0}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text-muted)}
+.btn-ghost:hover{color:var(--text-primary);border-color:var(--text-dim)}
+
+/* ===== Workspace ===== */
+.workspace{
+  height:calc(100vh - 56px);display:grid;grid-template-columns:1fr 1px 420px;
+}
+.divider{background:var(--border)}
+
+/* ===== Editor pane ===== */
+.editor-pane{display:flex;flex-direction:column;min-width:0;background:var(--bg-deep)}
+.pane-title{
+  height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border-soft);
+}
+.pane-title .filename{color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px}
+.editor-body{flex:1;display:flex;overflow:hidden;position:relative}
+.gutter{
+  width:48px;flex-shrink:0;background:var(--bg-panel);color:var(--text-dim);
+  font-family:var(--mono);font-size:12.5px;line-height:21px;text-align:right;
+  padding:14px 10px 14px 0;overflow:hidden;user-select:none;border-right:1px solid var(--border-soft);
+}
+.gutter div.err-line{color:var(--error);font-weight:700}
+.gutter div.warn-line{color:var(--warning);font-weight:700}
+.code-scroll{flex:1;position:relative;overflow:hidden}
+textarea{
+  width:100%;height:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text-primary);
+  font:12.5px/21px var(--mono);padding:14px 16px;white-space:pre;overflow:auto;position:absolute;inset:0;
+}
+.minimap{
+  width:14px;flex-shrink:0;background:var(--bg-panel);border-left:1px solid var(--border-soft);
+  position:relative;
+}
+.minimap .tick{position:absolute;left:3px;right:3px;height:3px;border-radius:1px;cursor:pointer}
+.minimap .tick.error{background:var(--error)}
+.minimap .tick.warning{background:var(--warning)}
+
+/* ===== Results pane ===== */
+.results-pane{display:flex;flex-direction:column;background:var(--bg-panel);min-width:0}
+.summary{padding:16px;border-bottom:1px solid var(--border)}
+.summary-row{display:flex;gap:10px;margin-bottom:12px}
+.stat{
+  flex:1;border-radius:8px;padding:10px 12px;border:1px solid var(--border);background:var(--bg-raised);
+}
+.stat .num{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.stat .lbl{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stat.errors .num{color:var(--error)}
+.stat.warnings .num{color:var(--warning)}
+.stat.clean .num{color:var(--ok)}
+.status-line{
+  font-family:var(--mono);font-size:12px;padding:9px 12px;border-radius:6px;display:flex;align-items:center;gap:8px;
+}
+.status-line.ok{background:var(--ok-soft);color:var(--ok)}
+.status-line.bad{background:var(--error-soft);color:var(--error)}
+
+.issues-list{flex:1;overflow-y:auto;padding:8px}
+.issue{
+  padding:11px 12px;border-radius:8px;margin-bottom:6px;border:1px solid var(--border-soft);
+  cursor:pointer;transition:.12s;background:var(--bg-deep);
+}
+.issue:hover{border-color:var(--text-dim);background:var(--bg-raised)}
+.issue-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.badge{
+  font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.4px;
+  text-transform:uppercase;flex-shrink:0;
+}
+.badge.error{background:var(--error-soft);color:var(--error)}
+.badge.warning{background:var(--warning-soft);color:var(--warning)}
+.issue-line{font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.issue-rule{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);margin-left:auto}
+.issue-msg{font-size:12.5px;color:var(--text-primary);line-height:1.5}
+.issue-msg code{
+  background:var(--bg-raised);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+  font-family:var(--mono);font-size:11.5px;color:var(--accent);
+}
+.empty-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);
+  padding:30px;text-align:center;gap:8px;
+}
+.empty-state .glyph{font-size:34px;color:var(--ok)}
+.empty-state p{font-size:12.5px;max-width:220px;line-height:1.5;margin:0}
+
+.legend{
+  padding:10px 16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10.5px;
+  color:var(--text-dim);display:flex;gap:14px;flex-wrap:wrap;
+}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">&lt;/&gt;</div>
+    <div>
+      <h1>Markup Check</h1>
+      <span>generic HTML structure diagnostics</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <label class="file-label" for="fileInput">⇪ Open .html file</label>
+    <input type="file" id="fileInput" accept=".html,.htm,text/html" style="display:none">
+    <button class="btn btn-ghost" id="sampleBtn">Load sample</button>
+    <button class="btn btn-ghost" id="clearBtn">Clear</button>
+    <button class="btn btn-primary" id="analyzeBtn">▸ Analyze</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <section class="editor-pane">
+    <div class="pane-title">
+      <span class="filename" id="filename">untitled.html</span>
+      <span id="charCount">0 lines</span>
+    </div>
+    <div class="editor-body">
+      <div class="gutter" id="gutter">1</div>
+      <div class="code-scroll">
+        <textarea id="code" spellcheck="false" placeholder="Paste or type your HTML here, or open a .html file..."></textarea>
+      </div>
+      <div class="minimap" id="minimap"></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="results-pane">
+    <div class="summary">
+      <div class="summary-row">
+        <div class="stat errors"><div class="num" id="errCount">0</div><div class="lbl">Errors</div></div>
+        <div class="stat warnings"><div class="num" id="warnCount">0</div><div class="lbl">Warnings</div></div>
+        <div class="stat clean"><div class="num" id="checksRun">0</div><div class="lbl">Rules checked</div></div>
+      </div>
+      <div class="status-line ok" id="statusLine">Waiting for markup…</div>
+    </div>
+    <div class="issues-list" id="issuesList">
+      <div class="empty-state">
+        <div class="glyph">◌</div>
+        <p>Click <b>Analyze</b> to scan your HTML for tag, nesting, attribute and structural issues.</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--error)"></i> error — breaks the page / invalid markup</span>
+      <span><i style="background:var(--warning)"></i> warning — works, but against best practice</span>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   REFERENCE DATA
+   ============================================================ */
+var VOID_ELEMENTS = new Set(["area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"]);
+
+var KNOWN_TAGS = new Set([
+"a","abbr","address","area","article","aside","audio","b","base","bdi","bdo","blockquote","body","br",
+"button","canvas","caption","cite","code","col","colgroup","data","datalist","dd","del","details","dfn",
+"dialog","div","dl","dt","em","embed","fieldset","figcaption","figure","footer","form","h1","h2","h3","h4",
+"h5","h6","head","header","hgroup","hr","html","i","iframe","img","input","ins","kbd","label","legend","li",
+"link","main","map","mark","menu","meta","meter","nav","noscript","object","ol","optgroup","option","output",
+"p","param","picture","pre","progress","q","rp","rt","ruby","s","samp","script","section","select","slot",
+"small","source","span","strong","style","sub","summary","sup","table","tbody","td","template","textarea",
+"tfoot","th","thead","time","title","tr","track","u","ul","var","video","wbr","svg","path"
+]);
+
+var DEPRECATED_TAGS = new Set(["acronym","applet","basefont","big","blink","center","dir","font","frame",
+"frameset","isindex","listing","marquee","multicol","nextid","noframes","plaintext","spacer","strike","tt","xmp"]);
+
+var BLOCK_ELEMENTS = new Set(["address","article","aside","blockquote","details","div","dl","fieldset",
+"figcaption","figure","footer","form","h1","h2","h3","h4","h5","h6","header","hr","main","menu","nav","ol",
+"p","pre","section","table","ul"]);
+
+// tag -> allowed direct parents (only enforced when the tag is nested inside *some* element)
+var REQUIRED_PARENT = {
+  li:["ul","ol","menu"],
+  dt:["dl"], dd:["dl"],
+  tr:["table","thead","tbody","tfoot"],
+  td:["tr"], th:["tr"],
+  thead:["table"], tbody:["table"], tfoot:["table"], caption:["table"], colgroup:["table"],
+  option:["select","optgroup","datalist"],
+  optgroup:["select"],
+  figcaption:["figure"],
+  summary:["details"],
+  legend:["fieldset"],
+  source: ["picture","audio","video"],
+  track: ["audio","video"]
+};
+
+var NO_SELF_NEST = new Set(["a","button","label"]);
+
+/* ============================================================
+   TOKENIZER
+   ============================================================ */
+function countNewlines(s){ var n=0; for(var i=0;i<s.length;i++) if(s[i]==="\n") n++; return n; }
+
+function tokenize(html){
+  var tokens = [];
+  var i = 0, line = 1, len = html.length;
+  while(i < len){
+    if(html[i] === "<"){
+      if(html.startsWith("<!--", i)){
+        var end = html.indexOf("-->", i+4);
+        var raw = end === -1 ? html.slice(i) : html.slice(i, end+3);
+        tokens.push({type:"comment", raw:raw, line:line});
+        line += countNewlines(raw);
+        i = end === -1 ? len : end+3;
+        continue;
+      }
+      if(html.slice(i, i+2) === "<!"){
+        var end2 = html.indexOf(">", i);
+        var raw2 = end2 === -1 ? html.slice(i) : html.slice(i, end2+1);
+        tokens.push({type:"decl", raw:raw2, line:line});
+        line += countNewlines(raw2);
+        i = end2 === -1 ? len : end2+1;
+        continue;
+      }
+      // generic tag scan, respecting quotes
+      var j = i+1, inQuote = null;
+      while(j < len){
+        var c = html[j];
+        if(inQuote){ if(c === inQuote) inQuote = null; }
+        else if(c === '"' || c === "'"){ inQuote = c; }
+        else if(c === ">"){ break; }
+        j++;
+      }
+      var rawTag = html.slice(i, Math.min(j+1, len));
+      var tagLine = line;
+      line += countNewlines(rawTag);
+      var closing = rawTag[1] === "/";
+      var m = rawTag.match(/^<\/?\s*([a-zA-Z][a-zA-Z0-9:-]*)/);
+      var tagName = m ? m[1].toLowerCase() : null;
+      var selfClosing = /\/\s*>$/.test(rawTag);
+      var attrsRaw = rawTag.replace(/^<\/?\s*[a-zA-Z][a-zA-Z0-9:-]*/, "").replace(/\/?>\s*$/, "");
+      if(tagName){
+        tokens.push({type: closing ? "close":"open", tagName:tagName, raw:rawTag, attrsRaw:attrsRaw, selfClosing:selfClosing, line:tagLine});
+      }
+      i = j+1;
+      continue;
+    } else {
+      var next = html.indexOf("<", i);
+      if(next === -1) next = len;
+      var text = html.slice(i, next);
+      line += countNewlines(text);
+      i = next;
+    }
+  }
+  return tokens;
+}
+
+function parseAttrs(attrsRaw){
+  var attrs = [];
+  var re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+  var mm;
+  while((mm = re.exec(attrsRaw)) !== null){
+    if(!mm[1]) continue;
+    var hasVal = mm[2] !== undefined;
+    var val = mm[3] !== undefined ? mm[3] : (mm[4] !== undefined ? mm[4] : (mm[5] !== undefined ? mm[5] : ""));
+    var quoted = mm[3] !== undefined || mm[4] !== undefined;
+    attrs.push({name: mm[1].toLowerCase(), value: val, hasVal: hasVal, quoted: quoted});
+  }
+  return attrs;
+}
+
+function getAttr(attrs, name){
+  for(var i=0;i<attrs.length;i++) if(attrs[i].name === name) return attrs[i];
+  return null;
+}
+
+/* ============================================================
+   VALIDATOR
+   ============================================================ */
+function validate(html){
+  var issues = [];
+  var rulesChecked = 24;
+  function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
+  function warn(line, msg, rule){ issues.push({sev:"warning", line:line, msg:msg, rule:rule}); }
+
+  if(!html.trim()){
+    return {issues:[], rulesChecked: rulesChecked};
+  }
+
+  var tokens = tokenize(html);
+  var stack = [];        // {tagName, line}
+  var idMap = {};
+  var sawDoctype = false;
+  var htmlCount = 0, headCount = 0, bodyCount = 0, titleCount = 0;
+  var htmlLangSeen = false, charsetSeen = false;
+  var firstTagSeen = false;
+
+  for(var t=0; t<tokens.length; t++){
+    var tok = tokens[t];
+
+    if(tok.type === "decl"){
+      if(/^<!doctype/i.test(tok.raw)){
+        sawDoctype = true;
+        if(firstTagSeen) err(tok.line, "The <!DOCTYPE html> declaration must be the very first thing in the file.", "doctype-position");
+        if(!/^<!doctype\s+html\s*>$/i.test(tok.raw.trim())) warn(tok.line, "Use the standard HTML5 doctype: <code>&lt;!DOCTYPE html&gt;</code>.", "doctype-form");
+      } else {
+        warn(tok.line, "Unrecognized declaration " + escapeHtml(tok.raw) + ".", "decl-unknown");
+      }
+      continue;
+    }
+    if(tok.type === "comment") continue;
+
+    if(tok.type === "open"){
+      firstTagSeen = true;
+      var name = tok.tagName;
+      var attrs = parseAttrs(tok.attrsRaw);
+      var parent = stack.length ? stack[stack.length-1].tagName : null;
+
+      // unknown tag
+      if(!KNOWN_TAGS.has(name) && name.indexOf("-") === -1){
+        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is not a recognized standard HTML5 element. Check spelling, or use a hyphenated name if this is a custom element.", "unknown-tag");
+      }
+      // deprecated
+      if(DEPRECATED_TAGS.has(name)){
+        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is obsolete/deprecated in HTML5 — use CSS or a semantic alternative instead.", "deprecated-tag");
+      }
+
+      // duplicate attributes
+      var seenAttr = {};
+      for(var a=0; a<attrs.length; a++){
+        var an = attrs[a].name;
+        if(seenAttr[an]) err(tok.line, "Duplicate attribute <code>" + an + "</code> on <code>&lt;" + name + "&gt;</code>.", "dup-attr");
+        seenAttr[an] = true;
+        if(attrs[a].hasVal && !attrs[a].quoted){
+          warn(tok.line, "Attribute <code>" + an + "</code> value should be wrapped in quotes.", "unquoted-attr");
+        }
+      }
+
+      // id uniqueness
+      var idAttr = getAttr(attrs, "id");
+      if(idAttr && idAttr.value){
+        if(idMap[idAttr.value] !== undefined){
+          err(tok.line, "Duplicate <code>id=\"" + idAttr.value + "\"</code> — already used on line " + idMap[idAttr.value] + ". IDs must be unique in a document.", "dup-id");
+        } else {
+          idMap[idAttr.value] = tok.line;
+        }
+      }
+
+      // structural singleton / nesting checks
+      if(name === "html"){
+        htmlCount++;
+        if(getAttr(attrs,"lang")) htmlLangSeen = true;
+        if(htmlCount > 1) err(tok.line, "More than one <code>&lt;html&gt;</code> element found — there must be exactly one.", "multi-html");
+      }
+      if(name === "head"){ headCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;head&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "head-parent"); }
+      if(name === "body"){ bodyCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;body&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "body-parent"); }
+      if(name === "title"){
+        titleCount++;
+        if(titleCount > 1) warn(tok.line, "More than one <code>&lt;title&gt;</code> found — only the first is used by browsers.", "multi-title");
+      }
+      if(name === "meta"){
+        if(getAttr(attrs,"charset") || (getAttr(attrs,"http-equiv") && getAttr(attrs,"content"))) charsetSeen = true;
+        if(!getAttr(attrs,"charset") && !getAttr(attrs,"name") && !getAttr(attrs,"http-equiv")){
+          warn(tok.line, "<code>&lt;meta&gt;</code> tag has no <code>charset</code>, <code>name</code> or <code>http-equiv</code> attribute — it does nothing.", "meta-empty");
+        }
+      }
+
+      // required-parent nesting rules
+      if(REQUIRED_PARENT[name]){
+        var allowed = REQUIRED_PARENT[name];
+        if(!parent || allowed.indexOf(parent) === -1){
+          err(tok.line, "<code>&lt;" + name + "&gt;</code> should be placed directly inside " +
+              allowed.map(function(x){return "<code>&lt;"+x+"&gt;</code>";}).join(" or ") +
+              (parent ? ", not <code>&lt;" + parent + "&gt;</code>." : ", but it has no parent element."), "bad-nesting");
+        }
+      }
+
+      // self-nesting (a-in-a, button-in-button/a, label-in-label)
+      if(NO_SELF_NEST.has(name)){
+        for(var s=0; s<stack.length; s++){
+          if(stack[s].tagName === name){
+            err(tok.line, "<code>&lt;" + name + "&gt;</code> cannot be nested inside another <code>&lt;" + name + "&gt;</code> (opened on line " + stack[s].line + ").", "self-nest");
+            break;
+          }
+        }
+      }
+      if(name === "button" && stack.some(function(s){return s.tagName==="a";})){
+        err(tok.line, "<code>&lt;button&gt;</code> should not be nested inside <code>&lt;a&gt;</code> — interactive elements cannot contain other interactive elements.", "interactive-nest");
+      }
+      if(name === "a" && stack.some(function(s){return s.tagName==="button";})){
+        err(tok.line, "<code>&lt;a&gt;</code> should not be nested inside <code>&lt;button&gt;</code> — interactive elements cannot contain other interactive elements.", "interactive-nest");
+      }
+
+      // block element inside <p>
+      if(BLOCK_ELEMENTS.has(name) && name !== "p"){
+        for(var s2=0; s2<stack.length; s2++){
+          if(stack[s2].tagName === "p"){
+            err(tok.line, "Block-level element <code>&lt;" + name + "&gt;</code> cannot appear inside <code>&lt;p&gt;</code> (opened on line " + stack[s2].line + "). The browser will silently close the &lt;p&gt; early.", "block-in-p");
+            break;
+          }
+        }
+      }
+
+      // required attributes per tag
+      if(name === "img"){
+        if(!getAttr(attrs,"src")) err(tok.line, "<code>&lt;img&gt;</code> is missing a <code>src</code> attribute.", "req-attr");
+        if(!getAttr(attrs,"alt")) err(tok.line, "<code>&lt;img&gt;</code> is missing an <code>alt</code> attribute (required for accessibility).", "req-attr");
+      }
+      if(name === "a"){
+        if(!getAttr(attrs,"href") && !getAttr(attrs,"name") && !getAttr(attrs,"id")){
+          warn(tok.line, "<code>&lt;a&gt;</code> has no <code>href</code> — it won't act as a link.", "req-attr");
+        }
+      }
+      if(name === "link"){
+        if(!getAttr(attrs,"rel")) err(tok.line, "<code>&lt;link&gt;</code> is missing a <code>rel</code> attribute.", "req-attr");
+        if(!getAttr(attrs,"href")) err(tok.line, "<code>&lt;link&gt;</code> is missing an <code>href</code> attribute.", "req-attr");
+      }
+      if(name === "label"){
+        if(!getAttr(attrs,"for")) warn(tok.line, "<code>&lt;label&gt;</code> has no <code>for</code> attribute linking it to a form control.", "req-attr");
+      }
+      if(name === "iframe"){
+        if(!getAttr(attrs,"title")) warn(tok.line, "<code>&lt;iframe&gt;</code> is missing a <code>title</code> attribute (needed for accessibility).", "req-attr");
+        if(!getAttr(attrs,"src") && !getAttr(attrs,"srcdoc")) warn(tok.line, "<code>&lt;iframe&gt;</code> has no <code>src</code>/<code>srcdoc</code>.", "req-attr");
+      }
+      if(name === "input"){
+        var typeAttr = getAttr(attrs,"type");
+        if(!typeAttr) warn(tok.line, "<code>&lt;input&gt;</code> has no explicit <code>type</code> attribute (defaults to text).", "req-attr");
+      }
+      if(name === "table"){
+        // fine, checked structurally below via children
+      }
+
+      // void element written with a body expectation is fine; push non-void onto stack
+      if(VOID_ELEMENTS.has(name)){
+        // ok whether or not self-closed
+      } else {
+        stack.push({tagName:name, line:tok.line});
+        if(!tok.selfClosing === false){} // no-op, keep lint quiet
+        if(tok.selfClosing){
+          warn(tok.line, "<code>&lt;" + name + " /&gt;</code> self-closing syntax is not meaningful in HTML5 for non-void elements — a matching <code>&lt;/" + name + "&gt;</code> is still required.", "invalid-self-close");
+        }
+      }
+      continue;
+    }
+
+    if(tok.type === "close"){
+      var cname = tok.tagName;
+      if(VOID_ELEMENTS.has(cname)){
+        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> — <code>&lt;" + cname + "&gt;</code> is a void element and must not have a closing tag.", "void-close");
+        continue;
+      }
+      if(stack.length === 0){
+        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> found with no matching opening tag.", "stray-close");
+        continue;
+      }
+      if(stack[stack.length-1].tagName === cname){
+        stack.pop();
+      } else {
+        var foundAt = -1;
+        for(var k=stack.length-1; k>=0; k--){
+          if(stack[k].tagName === cname){ foundAt = k; break; }
+        }
+        if(foundAt === -1){
+          err(tok.line, "<code>&lt;/" + cname + "&gt;</code> does not match any currently open tag.", "unmatched-close");
+        } else {
+          err(tok.line, "Mismatched closing tag: expected <code>&lt;/" + stack[stack.length-1].tagName + "&gt;</code> (opened on line " + stack[stack.length-1].line + ") but found <code>&lt;/" + cname + "&gt;</code>.", "mismatch-close");
+          for(var p=stack.length-1; p>=foundAt; p--){
+            if(p !== foundAt) err(stack[p].line, "<code>&lt;" + stack[p].tagName + "&gt;</code> (opened here) is left unclosed due to the mismatch above.", "cascading-unclosed");
+          }
+          stack.length = foundAt;
+        }
+      }
+      continue;
+    }
+  }
+
+  // unclosed tags remaining
+  for(var u=0; u<stack.length; u++){
+    err(stack[u].line, "<code>&lt;" + stack[u].tagName + "&gt;</code> is never closed — missing <code>&lt;/" + stack[u].tagName + "&gt;</code>.", "unclosed");
+  }
+
+  // document-level structural checks
+  if(!sawDoctype) err(1, "Missing <code>&lt;!DOCTYPE html&gt;</code> declaration at the top of the file.", "missing-doctype");
+  if(htmlCount === 0) err(1, "Missing root <code>&lt;html&gt;</code> element.", "missing-html");
+  if(headCount === 0) warn(1, "Missing <code>&lt;head&gt;</code> element.", "missing-head");
+  if(bodyCount === 0) warn(1, "Missing <code>&lt;body&gt;</code> element.", "missing-body");
+  if(titleCount === 0) err(1, "Missing <code>&lt;title&gt;</code> element — required inside &lt;head&gt;.", "missing-title");
+  if(htmlCount > 0 && !htmlLangSeen) warn(1, "<code>&lt;html&gt;</code> is missing a <code>lang</code> attribute (e.g. <code>lang=\"en\"</code>) — needed for accessibility and search engines.", "missing-lang");
+  if(!charsetSeen) warn(1, "No <code>&lt;meta charset=\"UTF-8\"&gt;</code> found — it should be the first element inside &lt;head&gt;.", "missing-charset");
+
+  return {issues: issues, rulesChecked: rulesChecked};
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+var codeEl = document.getElementById("code");
+var gutterEl = document.getElementById("gutter");
+var minimapEl = document.getElementById("minimap");
+var issuesListEl = document.getElementById("issuesList");
+var errCountEl = document.getElementById("errCount");
+var warnCountEl = document.getElementById("warnCount");
+var checksRunEl = document.getElementById("checksRun");
+var statusLineEl = document.getElementById("statusLine");
+var charCountEl = document.getElementById("charCount");
+var filenameEl = document.getElementById("filename");
+
+var SAMPLE = '<!DOCTYPE html>\n<html>\n<head>\n<title>My Page\n<meta name="viewport">\n</head>\n<body bgcolor="white">\n\n<h1>Welcome</h2>\n\n<p>\n  This is a paragraph.\n  <div>A div stuffed inside a paragraph.</div>\n</p>\n\n<img src="photo.jpg">\n\n<ul>\n  <li>Item one</li>\n  <p>Item two, not wrapped in li</p>\n</ul>\n\n<a href="#top">Outer link <a href="#nested">inner link</a></a>\n\n<div id="box">First box</div>\n<div id="box">Duplicate id box</div>\n\n<br></br>\n\n</body>\n</html>';
+
+function updateGutter(){
+  var lines = codeEl.value.split("\n").length;
+  var out = "";
+  for(var i=1;i<=lines;i++) out += i + "\n";
+  gutterEl.textContent = out;
+  charCountEl.textContent = lines + (lines===1?" line":" lines");
+}
+
+codeEl.addEventListener("scroll", function(){
+  gutterEl.scrollTop = codeEl.scrollTop;
+});
+codeEl.addEventListener("input", updateGutter);
+
+function jumpToLine(line){
+  var lines = codeEl.value.split("\n");
+  var idx = 0;
+  for(var i=0;i<Math.min(line-1, lines.length); i++) idx += lines[i].length + 1;
+  codeEl.focus();
+  codeEl.setSelectionRange(idx, idx + (lines[line-1] ? lines[line-1].length : 0));
+  var lineHeight = 21;
+  codeEl.scrollTop = Math.max(0, (line-1) * lineHeight - codeEl.clientHeight/2);
+  gutterEl.scrollTop = codeEl.scrollTop;
+}
+
+function render(result){
+  var issues = result.issues;
+  var errors = issues.filter(function(i){return i.sev==="error";});
+  var warnings = issues.filter(function(i){return i.sev==="warning";});
+
+  errCountEl.textContent = errors.length;
+  warnCountEl.textContent = warnings.length;
+  checksRunEl.textContent = result.rulesChecked;
+
+  if(!codeEl.value.trim()){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "Waiting for markup…";
+  } else if(errors.length === 0 && warnings.length === 0){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "✓ No issues found";
+  } else if(errors.length === 0){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "✓ No errors — " + warnings.length + " warning" + (warnings.length===1?"":"s") + " to review";
+  } else {
+    statusLineEl.className = "status-line bad";
+    statusLineEl.textContent = "✗ " + errors.length + " error" + (errors.length===1?"":"s") + " found";
+  }
+
+  // gutter markers
+  document.querySelectorAll("#gutter .err-line,#gutter .warn-line").forEach(function(){});
+  var lineMap = {};
+  issues.forEach(function(iss){
+    if(!lineMap[iss.line] || iss.sev==="error") lineMap[iss.line] = iss.sev;
+  });
+  var gutterLines = codeEl.value.split("\n").length;
+  var gHtml = "";
+  for(var i=1;i<=gutterLines;i++){
+    var cls = lineMap[i] === "error" ? " class=\"err-line\"" : (lineMap[i]==="warning" ? " class=\"warn-line\"" : "");
+    gHtml += "<div" + cls + ">" + i + "</div>";
+  }
+  gutterEl.innerHTML = gHtml;
+
+  // minimap
+  minimapEl.innerHTML = "";
+  var totalLines = Math.max(gutterLines,1);
+  issues.forEach(function(iss){
+    var tick = document.createElement("div");
+    tick.className = "tick " + iss.sev;
+    var pct = Math.min(98, (iss.line-1)/totalLines*100);
+    tick.style.top = pct + "%";
+    tick.title = "Line " + iss.line;
+    tick.addEventListener("click", function(l){ return function(){ jumpToLine(l); }; }(iss.line));
+    minimapEl.appendChild(tick);
+  });
+
+  // issues list
+  if(issues.length === 0){
+    issuesListEl.innerHTML = "";
+    var empty = document.createElement("div");
+    empty.className = "empty-state";
+    if(!codeEl.value.trim()){
+      empty.innerHTML = '<div class="glyph">◌</div><p>Click <b>Analyze</b> to scan your HTML for tag, nesting, attribute and structural issues.</p>';
+    } else {
+      empty.innerHTML = '<div class="glyph">✓</div><p>No problems detected. Structure, nesting, attributes and tag closure all check out.</p>';
+    }
+    issuesListEl.appendChild(empty);
+    return;
+  }
+
+  var sorted = errors.concat(warnings);
+  issuesListEl.innerHTML = "";
+  sorted.forEach(function(iss){
+    var div = document.createElement("div");
+    div.className = "issue";
+    div.innerHTML =
+      '<div class="issue-head">' +
+        '<span class="badge ' + iss.sev + '">' + iss.sev + '</span>' +
+        '<span class="issue-line">Line ' + iss.line + '</span>' +
+        '<span class="issue-rule">' + iss.rule + '</span>' +
+      '</div>' +
+      '<div class="issue-msg">' + iss.msg + '</div>';
+    div.addEventListener("click", function(l){ return function(){ jumpToLine(l); }; }(iss.line));
+    issuesListEl.appendChild(div);
+  });
+}
+
+function runAnalysis(){
+  var result = validate(codeEl.value);
+  render(result);
+}
+
+document.getElementById("analyzeBtn").addEventListener("click", runAnalysis);
+document.getElementById("clearBtn").addEventListener("click", function(){
+  codeEl.value = "";
+  filenameEl.textContent = "untitled.html";
+  updateGutter();
+  runAnalysis();
+});
+document.getElementById("sampleBtn").addEventListener("click", function(){
+  codeEl.value = SAMPLE;
+  filenameEl.textContent = "sample.html";
+  updateGutter();
+  runAnalysis();
+});
+document.getElementById("fileInput").addEventListener("change", function(e){
+  var file = e.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    codeEl.value = ev.target.result;
+    filenameEl.textContent = file.name;
+    updateGutter();
+    runAnalysis();
+  };
+  reader.readAsText(file);
+});
+
+// init
+updateGutter();
+codeEl.value = SAMPLE;
+filenameEl.textContent = "sample.html";
+updateGutter();
+runAnalysis();
+</script>
+</body>
+</html>

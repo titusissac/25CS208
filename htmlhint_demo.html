@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline HTML Syntax & Requirement Evaluator</title>
+
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; }
+header { height: 50px; background: #1e293b; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #334155; }
+header h2 { margin: 0; font-size: 16px; color: #38bdf8; }
+header span { font-size: 12px; color: #94a3b8; }
+
+.workspace { height: calc(100vh - 50px); display: grid; grid-template-columns: 50% 50%; gap: 1px; background: #334155; }
+.panel { background: #0f172a; display: flex; flex-direction: column; overflow: hidden; }
+.panel-title { padding: 10px 14px; background: #1e293b; font-size: 13px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1px solid #334155; text-transform: uppercase; color: #94a3b8; }
+
+/* Code Editor */
+textarea { flex: 1; width: 100%; resize: none; border: 0; outline: 0; padding: 16px; background: #090d16; color: #e2e8f0; font: 14px 'Consolas', 'Fira Code', monospace; line-height: 1.5; }
+.actions { padding: 10px; display: flex; gap: 10px; background: #1e293b; border-top: 1px solid #334155; }
+button { border: 0; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 13px; }
+.btn-run { background: #0284c7; color: white; }
+.btn-run:hover { background: #0369a1; }
+
+/* Diagnostic Output */
+.results-container { flex: 1; padding: 16px; overflow-y: auto; }
+.section-heading { font-size: 14px; margin: 16px 0 8px 0; color: #cbd5e1; border-bottom: 1px solid #334155; padding-bottom: 4px; }
+.section-heading:first-child { margin-top: 0; }
+
+.test-item { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; background: #1e293b; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+.status { font-weight: bold; text-align: center; }
+.pass { color: #4ade80; }
+.fail { color: #f87171; }
+
+.lint-error { background: #2d1215; border-left: 3px solid #f87171; padding: 8px 12px; margin-bottom: 6px; font-family: monospace; font-size: 12px; border-radius: 0 4px 4px 0; }
+.lint-meta { color: #fca5a5; font-weight: bold; }
+.lint-msg { color: #fecdd3; }
+</style>
+</head>
+<body>
+
+<header>
+  <h2>Web Technology Evaluation Engine</h2>
+  <span>100% Offline / Zero-External-Dependencies</span>
+</header>
+
+<div class="workspace">
+  <!-- LEFT PANEL: CODE EDITOR -->
+  <section class="panel">
+    <div class="panel-title">Student Code Editor</div>
+    <textarea id="htmlCode" spellcheck="false"><!DOCTYPE html>
+<html>
+<head>
+    <title>Test1</title>
+</head>
+<body>
+
+<div>
+    <h1>25CS208 Web Technology</h1>
+    
+    <!-- Unclosed paragraph to test validation -->
+    <p>This is a paragraph with an unclosed tag.
+    
+    <ul>
+        <li>Item 1</li>
+        <li>Item 2</li>
+    </ul>
+</div>
+
+</body>
+</html></textarea>
+    <div class="actions">
+      <button class="btn-run" onclick="validateAndRun()">▶ Verify & Run Tests</button>
+    </div>
+  </section>
+
+  <!-- RIGHT PANEL: RESULTS -->
+  <section class="panel">
+    <div class="panel-title">Evaluation & Diagnostics</div>
+    <div class="results-container">
+      
+      <div class="section-heading">1. Tag Integrity & Syntax Check</div>
+      <div id="lintOutput"></div>
+
+      <div class="section-heading">2. Requirement & DOM Checks</div>
+      <div id="testOutput"></div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+/**
+ * PURE JAVASCRIPT TAG SYNTAX PARSER
+ * Self-contained stack-based parser to detect unclosed / mismatched HTML tags.
+ */
+function parseHtmlSyntax(html) {
+  const errors = [];
+  
+  // 1. Check Doctype
+  if (!/^\s*<!DOCTYPE\s+html>/i.test(html)) {
+    errors.push({ line: 1, message: "Missing or incorrect <!DOCTYPE html> declaration at start." });
+  }
+
+  // Self-closing void tags that don't need closing tags
+  const voidTags = new Set(["area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"]);
+  
+  // Tag extractor regex
+  const tagRegex = /<(\/?)([a-zA-Z0-9]+)([^>]*?)>/g;
+  const stack = [];
+  let match;
+
+  // Clean non-breaking spaces
+  const cleanCode = html.replace(/\u00a0/g, " ");
+
+  while ((match = tagRegex.exec(cleanCode)) !== null) {
+    const isClosing = match[1] === "/";
+    const tagName = match[2].toLowerCase();
+    const isSelfClosingAttr = match[3].trim().endsWith("/");
+
+    // Calculate line number
+    const line = cleanCode.substring(0, match.index).split("\n").length;
+
+    if (voidTags.has(tagName) || isSelfClosingAttr) {
+      continue; // Skip void/self-closing elements
+    }
+
+    if (!isClosing) {
+      // Opening tag: push to stack
+      stack.push({ tag: tagName, line: line });
+    } else {
+      // Closing tag: verify match
+      if (stack.length === 0) {
+        errors.push({ line: line, message: `Unexpected closing tag </${tagName}> with no matching opening tag.` });
+      } else {
+        const last = stack.pop();
+        if (last.tag !== tagName) {
+          errors.push({ 
+            line: line, 
+            message: `Mismatched tag: expected </${last.tag}> (opened at line ${last.line}), but found </${tagName}>.` 
+          });
+        }
+      }
+    }
+  }
+
+  // Check remaining unclosed tags
+  while (stack.length > 0) {
+    const unclosed = stack.pop();
+    errors.push({
+      line: unclosed.line,
+      message: `Unclosed tag: <${unclosed.tag}> opened at line ${unclosed.line} is never closed.`
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * MAIN CONTROLLER
+ */
+function validateAndRun() {
+  const rawHtml = document.getElementById("htmlCode").value;
+  
+  // Step 1: Run local syntax check
+  const syntaxErrors = parseHtmlSyntax(rawHtml);
+  renderLintResults(syntaxErrors);
+
+  // Step 2: Run DOM assertions
+  runDOMTests(rawHtml, syntaxErrors);
+}
+
+/**
+ * RENDER LINT RESULTS
+ */
+function renderLintResults(errors) {
+  const container = document.getElementById("lintOutput");
+  container.innerHTML = "";
+
+  if (errors.length === 0) {
+    container.innerHTML = `
+      <div class="test-item">
+        <span class="status pass">✓</span>
+        <span>HTML Syntax & Tag Structure verified successfully. All tags closed properly.</span>
+        <span>PASS</span>
+      </div>`;
+    return;
+  }
+
+  errors.forEach(err => {
+    const div = document.createElement("div");
+    div.className = "lint-error";
+    div.innerHTML = `
+      <div class="lint-meta">Line ${err.line} [Syntax Error]</div>
+      <div class="lint-msg">${escapeHtml(err.message)}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+/**
+ * RUN DOM TESTS
+ */
+function runDOMTests(rawHtml, syntaxErrors) {
+  const container = document.getElementById("testOutput");
+  container.innerHTML = "";
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawHtml, "text/html");
+
+  const requirements = [
+    {
+      name: "No unclosed tags or syntax errors",
+      check: () => syntaxErrors.length === 0
+    },
+    {
+      name: "Page Title is 'Test1'",
+      check: () => doc.title.trim() === "Test1"
+    },
+    {
+      name: "Main content is encapsulated inside a <div>",
+      check: () => doc.querySelector("body > div") !== null
+    },
+    {
+      name: "Heading H1 contains '25CS208 Web Technology'",
+      check: () => {
+        const h1 = doc.querySelector("h1");
+        return h1 && h1.textContent.includes("25CS208 Web Technology");
+      }
+    },
+    {
+      name: "Unordered list contains at least 2 items",
+      check: () => doc.querySelectorAll("ul > li").length >= 2
+    }
+  ];
+
+  requirements.forEach((req, idx) => {
+    let passed = false;
+    try {
+      passed = req.check();
+    } catch (e) {
+      passed = false;
+    }
+
+    const row = document.createElement("div");
+    row.className = "test-item";
+    row.innerHTML = `
+      <div class="status ${passed ? 'pass' : 'fail'}">${passed ? '✓' : '✗'}</div>
+      <div>${idx + 1}. ${req.name}</div>
+      <div style="font-weight:bold; color:${passed ? '#4ade80' : '#f87171'}">${passed ? 'PASS' : 'FAIL'}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Auto-run on load
+window.onload = validateAndRun;
+</script>
+
+</body>
+</html>
