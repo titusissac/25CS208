@@ -47,7 +47,10 @@ textarea{width:100%;height:100%;resize:none;border:0;outline:0;padding:14px;back
 <body>
 <header>
   <h1>25CS208 Web Technology — Class Test 1</h1>
-  <div class="info">Basic HTML Structure &nbsp;|&nbsp; Total: 10 Marks</div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="info">Basic HTML Structure &nbsp;|&nbsp; Total: 10 Marks</div>
+    <button id="fsBtn" onclick="toggleFullscreen()" style="border:0;border-radius:5px;padding:6px 12px;cursor:pointer;font-weight:bold;background:#2563eb;color:#fff">⛶ Fullscreen</button>
+  </div>
 </header>
 
 <div class="workspace">
@@ -137,51 +140,7 @@ textarea{width:100%;height:100%;resize:none;border:0;outline:0;padding:14px;back
 </div>
 
 <script>
-const starterHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Test1</title>
-</head>
-<body>
-<div>
-<main>
-<hr>
-<h1>25CS208 Web Technology</h1>
-<h2>Module 1</h2>
-<h3>HTML</h3>
-<p>
-HTML is the standard markup language used to create web pages.<br>
-It provides structure to web content.<br>
-HTML uses elements and tags.<br>
-Lists and tables organize information.<br>
-HTML is the foundation of web development.
-</p>
-<h2>Ordered List</h2>
-<ol type="I" reversed>
-<li>Forms</li><li>Tables</li><li>Lists</li><li>Headings</li><li>Basic Elements</li>
-</ol>
-<h2>Unordered List</h2>
-<ul>
-<li>HTML</li><li>CSS</li><li>JavaScript</li><li>Bootstrap</li><li>React</li>
-</ul>
-<h2>Description List</h2>
-<dl>
-<dt>Element</dt><dd>A building block of HTML.</dd>
-<dt>Attribute</dt><dd>Provides additional information.</dd>
-<dt>Tag</dt><dd>Defines an HTML element.</dd>
-</dl>
-<h2>Table</h2>
-<table>
-<tr><td rowspan="2">1</td><td>2</td><td>3</td><td>4</td></tr>
-<tr><td>5</td><td>6</td><td>7</td></tr>
-<tr><td colspan="3">8</td><td>9</td></tr>
-</table>
-<hr>
-</main>
-</div>
-</body>
-</html>`;
+const starterHTML = ``;
 
 const starterCSS = `body {
 background-color: #eef6ff;
@@ -218,6 +177,19 @@ const tests = [
 ["Last row uses colspan=3",1,d=>d.querySelector("table")?.rows[2]?.cells[0]?.colSpan===3],
 ["Body has background color",0.5,d=>{let s=d.defaultView.getComputedStyle(d.body);return s.backgroundColor!=="rgba(0, 0, 0, 0)"&&s.backgroundColor!=="transparent"}],
 ["Body has text color",0.5,d=>d.defaultView.getComputedStyle(d.body).color!==""]];
+
+function toggleFullscreen(){
+if(!document.fullscreenElement){
+document.documentElement.requestFullscreen().catch(()=>{});
+}else{
+document.exitFullscreen().catch(()=>{});
+}
+}
+
+document.addEventListener("fullscreenchange",()=>{
+let btn=document.getElementById("fsBtn");
+btn.textContent=document.fullscreenElement?"⛶ Exit Fullscreen":"⛶ Fullscreen";
+});
 
 function switchTab(id,button){
 document.querySelectorAll(".editor").forEach(e=>e.classList.remove("active"));
