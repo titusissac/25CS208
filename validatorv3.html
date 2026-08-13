@@ -37,11 +37,11 @@ html,body{height:100%;margin:0;font-family:var(--sans);background:var(--bg-deep)
 }
 .modal-box{
   background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
-  width:100%;max-width:420px;padding:28px;box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width:100%;max-width:440px;padding:28px;box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 .modal-box h2{margin:0 0 6px 0;font-size:20px;color:var(--text-primary)}
 .modal-box p{margin:0 0 20px 0;font-size:13px;color:var(--text-muted)}
-.form-group{margin-bottom:16px}
+.form-group{margin-bottom:14px}
 .form-group label{display:block;font-size:12px;font-family:var(--mono);color:var(--text-muted);margin-bottom:6px}
 .form-group input{
   width:100%;background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;
@@ -68,7 +68,7 @@ header{
 .brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
 
 .student-meta{
-  display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
   background:var(--bg-raised);padding:6px 14px;border-radius:20px;border:1px solid var(--border-soft);
 }
 .student-meta span b{color:var(--accent)}
@@ -211,7 +211,7 @@ footer b{color:var(--text-primary);font-weight:600}
 <div class="modal-overlay" id="userModal">
   <div class="modal-box">
     <h2>Live viewer</h2>
-    <p>Please enter student information to initialize session tracker.</p>
+    <p>Please enter student and activity details to start.</p>
     <form id="studentForm">
       <div class="form-group">
         <label for="inputName">Full Name</label>
@@ -224,6 +224,10 @@ footer b{color:var(--text-primary);font-weight:600}
       <div class="form-group">
         <label for="inputBatch">Batch</label>
         <input type="text" id="inputBatch" placeholder="e.g. 2024-2028" required>
+      </div>
+      <div class="form-group">
+        <label for="inputActivity">Activity / Web Page Being Built</label>
+        <input type="text" id="inputActivity" placeholder="e.g. Portfolio Page Lab 1" required>
       </div>
       <button type="submit" class="submit-btn">Start Session</button>
     </form>
@@ -243,6 +247,7 @@ footer b{color:var(--text-primary);font-weight:600}
     <span>Student: <b id="dispName">-</b></span>
     <span>Reg No: <b id="dispReg">-</b></span>
     <span>Batch: <b id="dispBatch">-</b></span>
+    <span>Activity: <b id="dispActivity">-</b></span>
     <span>Loaded: <b id="dispLoaded">-</b></span>
     <span>Duration: <b id="dispDuration">00:00:00</b></span>
   </div>
@@ -344,19 +349,21 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
-// Student Details Form Submit Handler
+// Student & Activity Details Form Submit Handler
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var name = document.getElementById("inputName").value.trim();
   var reg = document.getElementById("inputReg").value.trim();
   var batch = document.getElementById("inputBatch").value.trim();
+  var activity = document.getElementById("inputActivity").value.trim();
 
-  if(!name || !reg || !batch) return;
+  if(!name || !reg || !batch || !activity) return;
 
   startTime = new Date();
   document.getElementById("dispName").textContent = name;
   document.getElementById("dispReg").textContent = reg;
   document.getElementById("dispBatch").textContent = batch;
+  document.getElementById("dispActivity").textContent = activity;
   document.getElementById("dispLoaded").textContent = startTime.toLocaleTimeString();
   
   document.getElementById("studentMeta").style.display = "flex";
@@ -365,6 +372,7 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
   timerInterval = setInterval(updateDuration, 1000);
 
   logEvent("Session initialized for " + name + " (" + reg + ")", "info");
+  logEvent("Building Web Page / Activity: " + activity, "info");
   logEvent("Live viewer ready.", "info");
 });
 
@@ -402,13 +410,13 @@ document.addEventListener("visibilitychange", function() {
   }
 });
 
-// Browser Resizing Log Handler (Debounced)
+// Explicit Resizing Activity Log Handler
 var resizeTimeout;
 window.addEventListener("resize", function() {
   clearTimeout(resizeTimeout);
   resizeTimeout = setTimeout(function() {
-    logEvent("Browser window resized (" + window.innerWidth + "x" + window.innerHeight + "px)", "info");
-  }, 400);
+    logEvent("Resizing activity detected (" + window.innerWidth + "x" + window.innerHeight + "px)", "warn");
+  }, 350);
 });
 
 /* ============================================================
@@ -818,24 +826,17 @@ document.getElementById("analyzeBtn").addEventListener("click", function(){
   logEvent("Manual diagnostic analysis executed.", "info");
 });
 
-// Clear Button Listener with Confirmation Prompt
+// Clear Button with Confirmation Prompt
 document.getElementById("clearBtn").addEventListener("click", function(){
-  if (codeEl.value.trim().length > 0) {
-    var confirmed = confirm("Are you sure you want to clear the editor?");
-    if (confirmed) {
-      codeEl.value = "";
-      updateGutter();
-      updateLivePreview();
-      runAnalysis();
-      logEvent("Editor cleared by user.", "info");
-    } else {
-      logEvent("Clear action cancelled by user.", "info");
-    }
-  } else {
+  var confirmed = confirm("Are you sure you want to clear the editor?");
+  if (confirmed) {
     codeEl.value = "";
     updateGutter();
     updateLivePreview();
     runAnalysis();
+    logEvent("Editor cleared by user.", "info");
+  } else {
+    logEvent("Clear action cancelled by user.", "info");
   }
 });
 
@@ -845,4 +846,4 @@ updateLivePreview();
 runAnalysis();
 </script>
 </body>
-</html>  
+</html>
