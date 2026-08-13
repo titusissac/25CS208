@@ -68,7 +68,7 @@ header{
 .brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
 
 .student-meta{
-  display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
   background:var(--bg-raised);padding:6px 14px;border-radius:20px;border:1px solid var(--border-soft);
 }
 .student-meta span b{color:var(--accent)}
@@ -83,10 +83,10 @@ header{
 .btn-ghost{background:transparent;border-color:var(--border);color:var(--text-muted)}
 .btn-ghost:hover{color:var(--text-primary);border-color:var(--text-dim);background:var(--bg-raised)}
 
-/* ===== Workspace ===== */
+/* ===== Workspace (Updated: 60% Editor / 40% Visualizer & Logs) ===== */
 .workspace{
   height:calc(100vh - 88px); /* 56px Header + 32px Footer */
-  display:grid;grid-template-columns:1fr 1px 480px;
+  display:grid;grid-template-columns: calc(60% - 1px) 1px 40%;
 }
 .divider{background:var(--border)}
 
@@ -123,7 +123,7 @@ textarea{
 .right-pane{display:flex;flex-direction:column;background:var(--bg-panel);min-width:0;height:100%;overflow:hidden}
 
 .preview-container{
-  height:32%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);
+  height:35%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);
 }
 .preview-iframe{
   width:100%;flex:1;border:none;background:#ffffff;
@@ -263,6 +263,7 @@ footer b{color:var(--text-primary);font-weight:600}
     <span>Reg No: <b id="dispReg">-</b></span>
     <span>Batch: <b id="dispBatch">-</b></span>
     <span>Activity: <b id="dispActivity">-</b></span>
+    <span>Date: <b id="dispDate">-</b></span>
     <span>Loaded: <b id="dispLoaded">-</b></span>
     <span>Duration: <b id="dispDuration">00:00:00</b></span>
   </div>
@@ -276,7 +277,7 @@ footer b{color:var(--text-primary);font-weight:600}
 
 <div class="workspace">
 
-  <!-- Left: Editor Pane -->
+  <!-- Left Pane (60% Width) -->
   <section class="editor-pane">
     <div class="pane-title">
       <span class="filename" id="filename">editor.html</span>
@@ -293,7 +294,7 @@ footer b{color:var(--text-primary);font-weight:600}
 
   <div class="divider"></div>
 
-  <!-- Right: Visualizer, Diagnostics, Activity Log -->
+  <!-- Right Pane (40% Width) -->
   <section class="right-pane">
     
     <div class="preview-container">
@@ -365,7 +366,7 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
-// Student Details Submission
+// Student Details Submission & Date Display Handler
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var name = document.getElementById("inputName").value.trim();
@@ -380,6 +381,7 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
   document.getElementById("dispReg").textContent = reg;
   document.getElementById("dispBatch").textContent = batch;
   document.getElementById("dispActivity").textContent = activity;
+  document.getElementById("dispDate").textContent = startTime.toLocaleDateString();
   document.getElementById("dispLoaded").textContent = startTime.toLocaleTimeString();
   
   document.getElementById("studentMeta").style.display = "flex";
@@ -405,7 +407,6 @@ document.addEventListener("cut", function(e) {
   logEvent("Cut attempted (Disabled)", "err");
 });
 
-// Enabled Paste with Content Capture and Logging
 document.addEventListener("paste", function(e) {
   var pastedText = "";
   if (e.clipboardData && e.clipboardData.getData) {
@@ -457,6 +458,7 @@ document.getElementById("printBtn").addEventListener("click", function() {
   var reg = document.getElementById("dispReg").textContent;
   var batch = document.getElementById("dispBatch").textContent;
   var activity = document.getElementById("dispActivity").textContent;
+  var dateStr = document.getElementById("dispDate").textContent;
   var loaded = document.getElementById("dispLoaded").textContent;
   var duration = document.getElementById("dispDuration").textContent;
   
@@ -470,7 +472,7 @@ document.getElementById("printBtn").addEventListener("click", function() {
   html += '<table>';
   html += '<tr><td><b>Student Name:</b> ' + escapeHtml(name) + '</td><td><b>Reg No:</b> ' + escapeHtml(reg) + '</td></tr>';
   html += '<tr><td><b>Batch:</b> ' + escapeHtml(batch) + '</td><td><b>Activity / Page:</b> ' + escapeHtml(activity) + '</td></tr>';
-  html += '<tr><td><b>Session Started:</b> ' + escapeHtml(loaded) + '</td><td><b>Total Duration:</b> ' + escapeHtml(duration) + '</td></tr>';
+  html += '<tr><td><b>Date:</b> ' + escapeHtml(dateStr) + '</td><td><b>Session Started:</b> ' + escapeHtml(loaded) + ' (' + escapeHtml(duration) + ')</td></tr>';
   html += '</table>';
 
   html += '<h3>HTML Structural Diagnostics</h3>';
@@ -812,9 +814,18 @@ function updateGutter(){
   charCountEl.textContent = lines + (lines===1?" line":" lines");
 }
 
+// Automatically Normalizes Windows Local Image File Paths
 function updateLivePreview(){
+  var rawCode = codeEl.value;
+  
+  // Format Windows local paths (D:\KITS\...) into valid browser URLs (file:///D:/KITS/...)
+  var processedCode = rawCode.replace(/src=["']([a-zA-Z]:\\[^"']+)["']/g, function(match, path) {
+    var formattedPath = "file:///" + path.replace(/\\/g, "/");
+    return 'src="' + formattedPath + '"';
+  });
+
   var baseUrl = '<base href="https://titusissac.github.io/25CS208/">';
-  livePreview.srcdoc = baseUrl + codeEl.value;
+  livePreview.srcdoc = baseUrl + processedCode;
 }
 
 codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
