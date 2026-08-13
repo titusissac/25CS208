@@ -90,14 +90,35 @@ header{
 }
 .divider{background:var(--border)}
 
-/* ===== Editor Pane ===== */
+/* ===== Editor Pane & Tabs ===== */
 .editor-pane{display:flex;flex-direction:column;min-width:0;background:var(--bg-panel)}
-.pane-title{
-  height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
-  letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border-soft);background:var(--bg-raised);
+
+.editor-tabs-bar {
+  height:38px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:space-between;
+  padding:0 12px;background:var(--bg-raised);border-bottom:1px solid var(--border-soft);
 }
-.pane-title .filename{color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px}
+.tab-group {
+  display:flex;align-items:center;gap:4px;height:100%;
+}
+.tab-btn {
+  font-family:var(--mono);font-size:11px;padding:6px 14px;border:1px solid transparent;
+  border-bottom:none;border-radius:6px 6px 0 0;background:transparent;color:var(--text-muted);
+  cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;height:30px;
+}
+.tab-btn:hover { color:var(--text-primary); background:rgba(255,255,255,0.6); }
+.tab-btn.active {
+  background:var(--bg-panel);color:var(--accent);border-color:var(--border-soft);
+  font-weight:700;border-bottom:1px solid var(--bg-panel);margin-bottom:-1px;
+}
+.tab-icon { font-size:10px; font-weight:800; }
+.tab-icon.html { color:#e34f26; }
+.tab-icon.css { color:#1572b6; }
+.tab-icon.js { color:#f7df1e; background:#000; padding:0 3px; border-radius:2px; font-size:9px; }
+
+.editor-info {
+  font-family:var(--mono);font-size:11px;color:var(--text-muted);padding-bottom:6px;
+}
+
 .editor-body{flex:1;display:flex;overflow:hidden;position:relative}
 .gutter{
   width:48px;flex-shrink:0;background:var(--bg-raised);color:var(--text-dim);
@@ -107,11 +128,12 @@ header{
 .gutter div.err-line{color:var(--error);font-weight:700}
 .gutter div.warn-line{color:var(--warning);font-weight:700}
 .code-scroll{flex:1;position:relative;overflow:hidden}
-textarea{
+textarea.code-editor{
   width:100%;height:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text-primary);
   font:12.5px/21px var(--mono);padding:14px 16px;white-space:pre;overflow:auto;position:absolute;inset:0;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease;display:none;
 }
+textarea.code-editor.active { display:block; }
 .minimap{
   width:14px;flex-shrink:0;background:var(--bg-raised);border-left:1px solid var(--border-soft);
   position:relative;
@@ -256,7 +278,7 @@ footer b{color:var(--text-primary);font-weight:600}
       </div>
       <div class="form-group">
         <label for="inputActivity">Activity / Web Page Being Built</label>
-        <input type="text" id="inputActivity" placeholder="e.g. Image Tag Lab Exercise" required>
+        <input type="text" id="inputActivity" placeholder="e.g. Interactive Web Form" required>
       </div>
       <button type="submit" class="submit-btn">Start Session</button>
     </form>
@@ -286,23 +308,38 @@ footer b{color:var(--text-primary);font-weight:600}
     <input type="file" id="imageFileInput" accept="image/*,video/*,audio/*" multiple style="display:none;">
     <button class="btn btn-ghost" id="attachImageBtn" title="Select files from local system">📁 Attach System Files</button>
     <button class="btn btn-ghost" id="printBtn">🖨 Print Report</button>
-    <button class="btn btn-ghost" id="clearBtn">Clear</button>
+    <button class="btn btn-ghost" id="clearBtn">Clear Active Tab</button>
     <button class="btn btn-primary" id="analyzeBtn">▸ Analyze</button>
   </div>
 </header>
 
 <div class="workspace">
 
-  <!-- Left Pane (60% Width) -->
+  <!-- Left Pane (60% Width) - Multi-Tab Editor -->
   <section class="editor-pane">
-    <div class="pane-title">
-      <span class="filename" id="filename">editor.html</span>
-      <span id="charCount">0 lines</span>
+    <div class="editor-tabs-bar">
+      <div class="tab-group">
+        <button class="tab-btn active" data-tab="html">
+          <span class="tab-icon html">&lt;/&gt;</span> index.html
+        </button>
+        <button class="tab-btn" data-tab="css">
+          <span class="tab-icon css">#</span> style.css
+        </button>
+        <button class="tab-btn" data-tab="js">
+          <span class="tab-icon js">JS</span> script.js
+        </button>
+      </div>
+      <div class="editor-info">
+        <span id="charCount">0 lines</span>
+      </div>
     </div>
+
     <div class="editor-body">
       <div class="gutter" id="gutter">1</div>
       <div class="code-scroll">
-        <textarea id="code" spellcheck="false" placeholder="Write HTML here or drag & drop images/videos directly into this window..."></textarea>
+        <textarea id="codeHTML" class="code-editor active" spellcheck="false" placeholder="Write HTML structure here..."></textarea>
+        <textarea id="codeCSS" class="code-editor" spellcheck="false" placeholder="Write CSS styles here..."></textarea>
+        <textarea id="codeJS" class="code-editor" spellcheck="false" placeholder="Write JavaScript code here..."></textarea>
       </div>
       <div class="minimap" id="minimap"></div>
     </div>
@@ -329,7 +366,7 @@ footer b{color:var(--text-primary);font-weight:600}
     </div>
 
     <div class="diagnostics-container">
-      <div class="pane-title">HTML Diagnostics</div>
+      <div class="pane-title" id="diagTitle">HTML Diagnostics</div>
       <div class="summary">
         <div class="summary-row">
           <div class="stat errors"><div class="num" id="errCount">0</div><div class="lbl">Errors</div></div>
@@ -341,7 +378,7 @@ footer b{color:var(--text-primary);font-weight:600}
       <div class="issues-list" id="issuesList">
         <div class="empty-state">
           <div class="glyph">◌</div>
-          <p>Click <b>Analyze</b> or type HTML to run diagnostics.</p>
+          <p>Click <b>Analyze</b> or type code to run diagnostics.</p>
         </div>
       </div>
     </div>
@@ -365,12 +402,13 @@ footer b{color:var(--text-primary);font-weight:600}
 
 <script>
 /* ============================================================
-   GLOBAL TRACKING & EVENT LOGGING
+   GLOBAL TRACKING, TABS & EVENT LOGGING
    ============================================================ */
 var startTime = null;
 var timerInterval = null;
 var localImageMap = {}; 
 var renderDebounceTimer = null;
+var activeTab = "html"; // "html", "css", or "js"
 
 function logEvent(msg, type) {
   type = type || "info";
@@ -432,6 +470,41 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
 });
 
 /* ============================================================
+   TAB SWITCHING LOGIC
+   ============================================================ */
+function getActiveTextarea() {
+  if (activeTab === "html") return document.getElementById("codeHTML");
+  if (activeTab === "css") return document.getElementById("codeCSS");
+  return document.getElementById("codeJS");
+}
+
+document.querySelectorAll(".tab-btn").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    var targetTab = this.getAttribute("data-tab");
+    if (targetTab === activeTab) return;
+
+    document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+    document.querySelectorAll(".code-editor").forEach(function(ta){ ta.classList.remove("active"); });
+
+    this.classList.add("active");
+    activeTab = targetTab;
+
+    var currentTextarea = getActiveTextarea();
+    currentTextarea.classList.add("active");
+    currentTextarea.focus();
+
+    var diagTitleEl = document.getElementById("diagTitle");
+    if (activeTab === "html") diagTitleEl.textContent = "HTML Diagnostics";
+    else if (activeTab === "css") diagTitleEl.textContent = "CSS Diagnostics";
+    else diagTitleEl.textContent = "JavaScript Diagnostics";
+
+    updateGutter();
+    runAnalysis();
+    logEvent("Switched tab to " + (activeTab === "html" ? "index.html" : (activeTab === "css" ? "style.css" : "script.js")), "info");
+  });
+});
+
+/* ============================================================
    SYSTEM MEDIA FILE ATTACHMENT & DRAG-AND-DROP HANDLER
    ============================================================ */
 function registerLocalFiles(files) {
@@ -454,42 +527,53 @@ document.getElementById("imageFileInput").addEventListener("change", function(e)
   updateLivePreview();
 });
 
-var codeTextarea = document.getElementById("code");
+var editorScrollArea = document.querySelector(".code-scroll");
 
-codeTextarea.addEventListener("dragover", function(e) {
+editorScrollArea.addEventListener("dragover", function(e) {
   e.preventDefault();
-  codeTextarea.style.background = "var(--accent-soft)";
+  var ta = getActiveTextarea();
+  ta.style.background = "var(--accent-soft)";
 });
 
-codeTextarea.addEventListener("dragleave", function(e) {
+editorScrollArea.addEventListener("dragleave", function(e) {
   e.preventDefault();
-  codeTextarea.style.background = "transparent";
+  var ta = getActiveTextarea();
+  ta.style.background = "transparent";
 });
 
-codeTextarea.addEventListener("drop", function(e) {
+editorScrollArea.addEventListener("drop", function(e) {
   e.preventDefault();
-  codeTextarea.style.background = "transparent";
+  var ta = getActiveTextarea();
+  ta.style.background = "transparent";
   var files = e.dataTransfer.files;
+  
   if (files && files.length > 0) {
     registerLocalFiles(files);
     
     for (var i = 0; i < files.length; i++) {
       var file = files[i];
-      var tag = "";
-      if (file.type.startsWith("image/")) {
-        tag = '<img src="' + file.name + '" alt="' + file.name.split('.')[0] + '">\n';
-      } else if (file.type.startsWith("video/")) {
-        tag = '<video src="' + file.name + '" controls width="100%"></video>\n';
-      } else if (file.type.startsWith("audio/")) {
-        tag = '<audio src="' + file.name + '" controls></audio>\n';
+      var insertText = "";
+      
+      if (activeTab === "html") {
+        if (file.type.startsWith("image/")) {
+          insertText = '<img src="' + file.name + '" alt="' + file.name.split('.')[0] + '">\n';
+        } else if (file.type.startsWith("video/")) {
+          insertText = '<video src="' + file.name + '" controls width="100%"></video>\n';
+        } else if (file.type.startsWith("audio/")) {
+          insertText = '<audio src="' + file.name + '" controls></audio>\n';
+        } else {
+          insertText = '<a href="' + file.name + '">' + file.name + '</a>\n';
+        }
+      } else if (activeTab === "css") {
+        insertText = 'url("' + file.name + '")';
       } else {
-        tag = '<a href="' + file.name + '">' + file.name + '</a>\n';
+        insertText = '"' + file.name + '"';
       }
       
-      var startPos = codeTextarea.selectionStart;
-      var endPos = codeTextarea.selectionEnd;
-      codeTextarea.value = codeTextarea.value.substring(0, startPos) + tag + codeTextarea.value.substring(endPos);
-      codeTextarea.selectionStart = codeTextarea.selectionEnd = startPos + tag.length;
+      var startPos = ta.selectionStart;
+      var endPos = ta.selectionEnd;
+      ta.value = ta.value.substring(0, startPos) + insertText + ta.value.substring(endPos);
+      ta.selectionStart = ta.selectionEnd = startPos + insertText.length;
     }
     
     updateGutter();
@@ -545,7 +629,11 @@ window.addEventListener("resize", function() {
    ============================================================ */
 document.getElementById("printBtn").addEventListener("click", function() {
   var printArea = document.getElementById("printArea");
-  var result = validate(codeEl.value);
+  var htmlCode = document.getElementById("codeHTML").value;
+  var cssCode = document.getElementById("codeCSS").value;
+  var jsCode = document.getElementById("codeJS").value;
+  
+  var result = validateHTML(htmlCode);
   
   var name = document.getElementById("dispName").textContent;
   var reg = document.getElementById("dispReg").textContent;
@@ -581,8 +669,14 @@ document.getElementById("printBtn").addEventListener("click", function() {
     html += '<p><i>✓ No structural HTML errors or warnings detected.</i></p>';
   }
 
-  html += '<h3>Submitted HTML Code</h3>';
-  html += '<pre>' + (escapeHtml(codeEl.value) || '<!-- No Code Entered -->') + '</pre>';
+  html += '<h3>HTML Code (index.html)</h3>';
+  html += '<pre>' + (escapeHtml(htmlCode) || '<!-- No HTML Code Entered -->') + '</pre>';
+
+  html += '<h3>CSS Code (style.css)</h3>';
+  html += '<pre>' + (escapeHtml(cssCode) || '/* No CSS Code Entered */') + '</pre>';
+
+  html += '<h3>JavaScript Code (script.js)</h3>';
+  html += '<pre>' + (escapeHtml(jsCode) || '// No JavaScript Code Entered') + '</pre>';
 
   html += '<h3>Session & Activity Log</h3>';
   var logItems = document.querySelectorAll("#logBody .log-item");
@@ -644,16 +738,15 @@ var REQUIRED_PARENT = {
 var NO_SELF_NEST = new Set(["a","button","label","form"]);
 
 /* ============================================================
-   TOKENIZER & COMPREHENSIVE VALIDATOR
+   TOKENIZER & COMPREHENSIVE VALIDATORS (HTML, CSS, JS)
    ============================================================ */
 function countNewlines(s){ var n=0; for(var i=0;i<s.length;i++) if(s[i]==="\n") n++; return n; }
 
-function tokenize(html){
+function tokenizeHTML(html){
   var tokens = [];
   var i = 0, line = 1, len = html.length;
   while(i < len){
     if(html[i] === "<"){
-      // Robust HTML Comment Tokenizer
       if(html.startsWith("<!--", i)){
         var end = html.indexOf("-->", i+4);
         if (end === -1) {
@@ -728,7 +821,7 @@ function getAttr(attrs, name){
   return null;
 }
 
-function validate(html){
+function validateHTML(html){
   var issues = [];
   var rulesChecked = 35;
   function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
@@ -738,7 +831,7 @@ function validate(html){
     return {issues:[], rulesChecked: rulesChecked};
   }
 
-  var tokens = tokenize(html);
+  var tokens = tokenizeHTML(html);
   var stack = [];
   var idMap = {};
   var sawDoctype = false;
@@ -931,6 +1024,165 @@ function validate(html){
   return {issues: issues, rulesChecked: rulesChecked};
 }
 
+/* ===== CSS VALIDATOR ===== */
+function validateCSS(css) {
+  var issues = [];
+  var rulesChecked = 16;
+  function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
+  function warn(line, msg, rule){ issues.push({sev:"warning", line:line, msg:msg, rule:rule}); }
+
+  if(!css.trim()) return {issues:[], rulesChecked: rulesChecked};
+
+  var lines = css.split("\n");
+
+  if(css.includes("/*") && (!css.includes("*/") || (css.lastIndexOf("/*") > css.lastIndexOf("*/")))){
+    var openLine = 1;
+    for(var l=0; l<lines.length; l++){
+      if(lines[l].includes("/*")) openLine = l + 1;
+    }
+    err(openLine, "Unclosed CSS comment starting with <code>/*</code>. Ensure it is closed with <code>*/</code>.", "unclosed-comment");
+  }
+
+  for(var i=0; i<lines.length; i++){
+    var lineNum = i + 1;
+    var lineText = lines[i];
+    var cleanLine = lineText.replace(/\/\*[\s\S]*?\*\//g, "");
+
+    if (/\{[\s]*\}/.test(cleanLine)) {
+      warn(lineNum, "Empty CSS ruleset detected.", "empty-ruleset");
+    }
+
+    if (/^[\s]*[a-zA-Z0-9_\-\.#,]+\s*\{/.test(cleanLine)) {
+      if (/\b\.\.|\b##/.test(cleanLine)) {
+        err(lineNum, "Malformed selector syntax detected (e.g. <code>..class</code> or <code>##id</code>).", "malformed-selector");
+      }
+      if (/,\s*\{/.test(cleanLine)) {
+        err(lineNum, "Trailing comma before opening brace <code>{</code> in selector.", "malformed-selector");
+      }
+    }
+
+    if (cleanLine.includes(":") && !cleanLine.includes("{") && !cleanLine.includes("}")) {
+      var parts = cleanLine.split(":");
+      var prop = parts[0].trim();
+      var val = parts.slice(1).join(":").trim();
+
+      if (val && !val.endsWith(";") && !val.endsWith("}")) {
+        warn(lineNum, "Missing semicolon <code>;</code> at end of property declaration <code>" + escapeHtml(prop) + "</code>.", "missing-semicolon");
+      }
+
+      if (/:\s*[1-9]\d*\s*(;|\s*$)/.test(cleanLine) && !/aspect-ratio|opacity|z-index|flex|flex-grow|flex-shrink|line-height|order|font-weight/i.test(prop)) {
+        warn(lineNum, "Numeric value for <code>" + escapeHtml(prop) + "</code> missing length unit (e.g. <code>px</code>, <code>rem</code>, <code>%</code>).", "missing-unit");
+      }
+
+      var commonTypos = {
+        "collor": "color", "text-algn": "text-align", "pading": "padding", 
+        "margn": "margin", "font-stylee": "font-style", "bacground": "background",
+        "centar": "center", "disply": "display", "posiiton": "position"
+      };
+      if (commonTypos[prop.toLowerCase()]) {
+        err(lineNum, "Possible property spelling typo: <code>" + escapeHtml(prop) + "</code>. Did you mean <code>" + commonTypos[prop.toLowerCase()] + "</code>?", "property-typo");
+      }
+
+      if (val.includes("!important")) {
+        warn(lineNum, "Use of <code>!important</code> detected. Avoid overusing it to preserve natural specificity.", "important-flag");
+      }
+    } else if (cleanLine.trim() && !cleanLine.includes("{") && !cleanLine.includes("}") && !cleanLine.startsWith("@") && !cleanLine.startsWith("/*") && !cleanLine.startsWith("*")) {
+      if (/^[a-zA-Z\-]+\s+[a-zA-Z0-9#\-\.]+(\s*;)?$/.test(cleanLine.trim())) {
+        err(lineNum, "Missing colon <code>:</code> separating property and value in CSS declaration.", "missing-colon");
+      }
+    }
+  }
+
+  var openCount = (css.match(/\{/g) || []).length;
+  var closeCount = (css.match(/\}/g) || []).length;
+  if (openCount > closeCount) {
+    err(lines.length, "Missing closing brace <code>}</code> in CSS code.", "unclosed-brace");
+  } else if (closeCount > openCount) {
+    err(1, "Stray closing brace <code>}</code> found without matching opening brace <code>{</code>.", "stray-brace");
+  }
+
+  return {issues: issues, rulesChecked: rulesChecked};
+}
+
+/* ===== JAVASCRIPT VALIDATOR ===== */
+function validateJS(js) {
+  var issues = [];
+  var rulesChecked = 18;
+  function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
+  function warn(line, msg, rule){ issues.push({sev:"warning", line:line, msg:msg, rule:rule}); }
+
+  if(!js.trim()) return {issues:[], rulesChecked: rulesChecked};
+
+  var lines = js.split("\n");
+
+  if(js.includes("/*") && (!js.includes("*/") || (js.lastIndexOf("/*") > js.lastIndexOf("*/")))){
+    err(1, "Unclosed multi-line comment starting with <code>/*</code>. Ensure it is closed with <code>*/</code>.", "unclosed-comment");
+  }
+
+  var openParen = (js.match(/\(/g) || []).length;
+  var closeParen = (js.match(/\)/g) || []).length;
+  if (openParen !== closeParen) {
+    err(lines.length, "Parenthesis mismatch: " + openParen + " opening <code>(</code> vs " + closeParen + " closing <code>)</code>.", "paren-mismatch");
+  }
+
+  var openBrace = (js.match(/\{/g) || []).length;
+  var closeBrace = (js.match(/\}/g) || []).length;
+  if (openBrace !== closeBrace) {
+    err(lines.length, "Curly brace mismatch: " + openBrace + " opening <code>{</code> vs " + closeBrace + " closing <code>}</code>.", "brace-mismatch");
+  }
+
+  var openBracket = (js.match(/\[/g) || []).length;
+  var closeBracket = (js.match(/\]/g) || []).length;
+  if (openBracket !== closeBracket) {
+    err(lines.length, "Square bracket mismatch: " + openBracket + " opening <code>[</code> vs " + closeBracket + " closing <code>]</code>.", "bracket-mismatch");
+  }
+
+  for(var i=0; i<lines.length; i++){
+    var lineNum = i + 1;
+    var lineText = lines[i];
+    var cleanLine = lineText.replace(/\/\/.*/, "").replace(/\/\*[\s\S]*?\*\//g, "");
+
+    if (/\bconst\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*(;|$)/.test(cleanLine)) {
+      err(lineNum, "Uninitialized <code>const</code> variable declaration. <code>const</code> variables must be assigned a value immediately.", "uninitialized-const");
+    }
+
+    if (/\b(var|let|const)\s+(class|function|return|if|else|for|while|switch|case|break|continue|default|import|export|delete|typeof|void|this|super|extends)\b/.test(cleanLine)) {
+      err(lineNum, "JavaScript reserved keyword used as a variable name.", "reserved-keyword");
+    }
+
+    if (cleanLine.includes("getElementByID")) {
+      err(lineNum, "DOM method typo: Use <code>document.getElementById</code> (lowercase 'd').", "dom-typo");
+    }
+    if (cleanLine.includes("getElementByClassName")) {
+      err(lineNum, "DOM method typo: Use <code>document.getElementsByClassName</code> (plural 'Elements').", "dom-typo");
+    }
+    if (cleanLine.includes("getElementByName")) {
+      err(lineNum, "DOM method typo: Use <code>document.getElementsByName</code> (plural 'Elements').", "dom-typo");
+    }
+    if (cleanLine.includes("addEventlistener")) {
+      err(lineNum, "DOM method typo: Use <code>addEventListener</code> (capital 'L').", "dom-typo");
+    }
+
+    if (/getElementById\(['"]#/i.test(cleanLine)) {
+      warn(lineNum, "Do not include the <code>#</code> prefix inside <code>getElementById()</code>. Pass only the ID string.", "dom-id-hash");
+    }
+
+    if (/addEventListener\(['"]on/i.test(cleanLine)) {
+      warn(lineNum, "Do not include the <code>'on'</code> prefix in <code>addEventListener()</code> (e.g. use <code>'click'</code> instead of <code>'onclick'</code>).", "event-prefix");
+    }
+
+    if (/\bif\s*\([^=]*=[^=]*\)/.test(cleanLine) && !/===|==|<=|>=|!=/.test(cleanLine)) {
+      warn(lineNum, "Single equals <code>=</code> assignment used inside <code>if</code> condition. Did you mean comparison <code>===</code>?", "assignment-in-condition");
+    }
+
+    if (/\b(if|while|for)\s+[^\(]/.test(cleanLine) && !/\b(if|while|for)\s*\(/.test(cleanLine)) {
+      err(lineNum, "Missing parentheses <code>(...)</code> around condition in control structure.", "missing-condition-parens");
+    }
+  }
+
+  return {issues: issues, rulesChecked: rulesChecked};
+}
+
 function escapeHtml(s){
   return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
@@ -938,7 +1190,6 @@ function escapeHtml(s){
 /* ============================================================
    UI & REALTIME WORKSPACE WIRING
    ============================================================ */
-var codeEl = document.getElementById("code");
 var gutterEl = document.getElementById("gutter");
 var minimapEl = document.getElementById("minimap");
 var issuesListEl = document.getElementById("issuesList");
@@ -952,34 +1203,44 @@ var livePreview = document.getElementById("livePreview");
 var currentZoom = 1.0;
 
 function updateGutter(){
-  var lines = codeEl.value.split("\n").length;
+  var activeTa = getActiveTextarea();
+  var lines = activeTa.value.split("\n").length;
   var out = "";
   for(var i=1;i<=lines;i++) out += i + "\n";
   gutterEl.textContent = out;
+  gutterEl.scrollTop = activeTa.scrollTop;
   charCountEl.textContent = lines + (lines===1?" line":" lines");
 }
 
 function updateLivePreview(){
   isUpdatingPreview = true;
-  var rawCode = codeEl.value;
+  var htmlRaw = document.getElementById("codeHTML").value;
+  var cssRaw = document.getElementById("codeCSS").value;
+  var jsRaw = document.getElementById("codeJS").value;
   
-  var processedCode = rawCode.replace(/src=["']([^"']+)["']/gi, function(match, path) {
-    var fileName = path.split(/[\/\\]/).pop().toLowerCase();
-    
-    if (localImageMap[fileName]) {
-      return 'src="' + localImageMap[fileName] + '"';
-    }
-    
-    if (/^[a-zA-Z]:\\/.test(path)) {
-      return 'src="file:///' + path.replace(/\\/g, "/") + '"';
-    }
-    
-    return match;
-  });
+  var processMedia = function(code) {
+    return code.replace(/(src=["']|url\(['"]?)([^"'\)]+)(["']|\)?)/gi, function(match, prefix, path, suffix) {
+      var fileName = path.split(/[\/\\]/).pop().toLowerCase();
+      if (localImageMap[fileName]) {
+        return prefix + localImageMap[fileName] + suffix;
+      }
+      if (/^[a-zA-Z]:\\/.test(path)) {
+        return prefix + 'file:///' + path.replace(/\\/g, "/") + suffix;
+      }
+      return match;
+    });
+  };
+
+  var processedHTML = processMedia(htmlRaw);
+  var processedCSS = processMedia(cssRaw);
 
   var baseUrl = '<base href="https://titusissac.github.io/25CS208/">';
   var zoomStyle = '<style>html { zoom: ' + currentZoom + '; transform-origin: 0 0; } body { overflow: auto; margin: 8px; }</style>';
-  livePreview.srcdoc = baseUrl + zoomStyle + processedCode;
+  var injectedCSS = '<style>' + processedCSS + '</style>';
+  var injectedJS = '<script>try { ' + jsRaw + ' } catch(err) { console.error(err); }<\/script>';
+
+  var docContent = baseUrl + zoomStyle + injectedCSS + processedHTML + injectedJS;
+  livePreview.srcdoc = docContent;
 
   setTimeout(function() {
     isUpdatingPreview = false;
@@ -1022,20 +1283,28 @@ document.getElementById("zoomResetBtn").addEventListener("click", function(){
   logEvent("Output view zoom reset to 100%", "info");
 });
 
-codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
-codeEl.addEventListener("input", function(){
-  updateGutter();
-  scheduleDebouncedUpdate();
+document.querySelectorAll(".code-editor").forEach(function(textarea) {
+  textarea.addEventListener("scroll", function(){
+    if (this === getActiveTextarea()) {
+      gutterEl.scrollTop = this.scrollTop;
+    }
+  });
+  
+  textarea.addEventListener("input", function(){
+    updateGutter();
+    scheduleDebouncedUpdate();
+  });
 });
 
 function jumpToLine(line){
-  var lines = codeEl.value.split("\n");
+  var ta = getActiveTextarea();
+  var lines = ta.value.split("\n");
   var idx = 0;
   for(var i=0;i<Math.min(line-1, lines.length); i++) idx += lines[i].length + 1;
-  codeEl.focus();
-  codeEl.setSelectionRange(idx, idx + (lines[line-1] ? lines[line-1].length : 0));
-  codeEl.scrollTop = Math.max(0, (line-1) * 21 - codeEl.clientHeight/2);
-  gutterEl.scrollTop = codeEl.scrollTop;
+  ta.focus();
+  ta.setSelectionRange(idx, idx + (lines[line-1] ? lines[line-1].length : 0));
+  ta.scrollTop = Math.max(0, (line-1) * 21 - ta.clientHeight/2);
+  gutterEl.scrollTop = ta.scrollTop;
 }
 
 function render(result){
@@ -1047,12 +1316,14 @@ function render(result){
   warnCountEl.textContent = warnings.length;
   checksRunEl.textContent = result.rulesChecked;
 
-  if(!codeEl.value.trim()){
+  var activeTa = getActiveTextarea();
+
+  if(!activeTa.value.trim()){
     statusLineEl.className = "status-line ok";
-    statusLineEl.textContent = "Waiting for markup…";
+    statusLineEl.textContent = "Waiting for code…";
   } else if(errors.length === 0 && warnings.length === 0){
     statusLineEl.className = "status-line ok";
-    statusLineEl.textContent = "✓ Markup structure valid";
+    statusLineEl.textContent = "✓ Code structure valid";
   } else if(errors.length === 0){
     statusLineEl.className = "status-line ok";
     statusLineEl.textContent = "✓ No errors — " + warnings.length + " warning(s)";
@@ -1065,7 +1336,8 @@ function render(result){
   issues.forEach(function(iss){
     if(!lineMap[iss.line] || iss.sev==="error") lineMap[iss.line] = iss.sev;
   });
-  var gutterLines = codeEl.value.split("\n").length;
+
+  var gutterLines = activeTa.value.split("\n").length;
   var gHtml = "";
   for(var i=1;i<=gutterLines;i++){
     var cls = lineMap[i] === "error" ? " class=\"err-line\"" : (lineMap[i]==="warning" ? " class=\"warn-line\"" : "");
@@ -1088,9 +1360,9 @@ function render(result){
     issuesListEl.innerHTML = "";
     var empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.innerHTML = !codeEl.value.trim() ? 
-      '<div class="glyph">◌</div><p>Type or paste HTML code to analyze.</p>' : 
-      '<div class="glyph">✓</div><p>No structural issues detected.</p>';
+    empty.innerHTML = !activeTa.value.trim() ? 
+      '<div class="glyph">◌</div><p>Type code in the editor to analyze.</p>' : 
+      '<div class="glyph">✓</div><p>No issues detected in ' + (activeTab === "html" ? "index.html" : (activeTab === "css" ? "style.css" : "script.js")) + '.</p>';
     issuesListEl.appendChild(empty);
     return;
   }
@@ -1113,25 +1385,31 @@ function render(result){
 }
 
 function runAnalysis(){
-  var result = validate(codeEl.value);
+  var result;
+  if (activeTab === "html") {
+    result = validateHTML(document.getElementById("codeHTML").value);
+  } else if (activeTab === "css") {
+    result = validateCSS(document.getElementById("codeCSS").value);
+  } else {
+    result = validateJS(document.getElementById("codeJS").value);
+  }
   render(result);
 }
 
 document.getElementById("analyzeBtn").addEventListener("click", function(){
   runAnalysis();
-  logEvent("Manual diagnostic analysis executed.", "info");
+  logEvent("Manual diagnostic analysis executed on " + activeTab + " tab.", "info");
 });
 
 document.getElementById("clearBtn").addEventListener("click", function(){
-  var confirmed = confirm("Are you sure you want to clear the editor?");
+  var ta = getActiveTextarea();
+  var confirmed = confirm("Are you sure you want to clear the active tab (" + (activeTab === "html" ? "index.html" : (activeTab === "css" ? "style.css" : "script.js")) + ")?");
   if (confirmed) {
-    codeEl.value = "";
+    ta.value = "";
     updateGutter();
     updateLivePreview();
     runAnalysis();
-    logEvent("Editor cleared by user.", "info");
-  } else {
-    logEvent("Clear action cancelled by user.", "info");
+    logEvent("Cleared tab: " + activeTab, "info");
   }
 });
 
