@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:#f4f6f8;
+  --bg-panel:#ffffff;
+  --bg-raised:#f8fafc;
+  --border:#e2e8f0;
+  --border-soft:#edf2f7;
+  --text-primary:#1a202c;
+  --text-muted:#64748b;
+  --text-dim:#94a3b8;
+  --accent:#0284c7;
+  --accent-soft:rgba(2, 132, 199, 0.08);
+  --error:#dc2626;
+  --error-soft:rgba(220, 38, 38, 0.08);
+  --warning:#d97706;
+  --warning-soft:rgba(217, 119, 6, 0.08);
+  --ok:#16a34a;
+  --ok-soft:rgba(22, 163, 74, 0.08);
+  --mono:'JetBrains Mono',Consolas,Menlo,monospace;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:var(--sans);background:var(--bg-deep);color:var(--text-primary);-webkit-font-smoothing:antialiased;}
+
+/* ===== Form Modal (Initial Load) ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15, 23, 42, 0.6);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;z-index:9999;
+}
+.modal-box{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
+  width:100%;max-width:420px;padding:28px;box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+.modal-box h2{margin:0 0 6px 0;font-size:20px;color:var(--text-primary)}
+.modal-box p{margin:0 0 20px 0;font-size:13px;color:var(--text-muted)}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-family:var(--mono);color:var(--text-muted);margin-bottom:6px}
+.form-group input{
+  width:100%;background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;
+  padding:10px 12px;color:var(--text-primary);font-family:var(--sans);font-size:14px;outline:none;
+}
+.form-group input:focus{border-color:var(--accent);background:#ffffff}
+.submit-btn{
+  width:100%;padding:11px;background:var(--accent);color:#ffffff;border:none;border-radius:6px;
+  font-weight:700;font-family:var(--mono);cursor:pointer;transition:.15s;margin-top:10px;
+}
+.submit-btn:hover{background:#0369a1}
+
+/* ===== Main Header ===== */
+header{
+  height:56px;background:var(--bg-panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{
+  width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#0369a1);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;
+  font-size:13px;color:#ffffff;flex-shrink:0;
+}
+.brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
+
+.student-meta{
+  display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  background:var(--bg-raised);padding:6px 14px;border-radius:20px;border:1px solid var(--border-soft);
+}
+.student-meta span b{color:var(--accent)}
+
+.header-actions{display:flex;align-items:center;gap:10px}
+.btn{
+  font-family:var(--mono);font-size:12px;font-weight:600;border-radius:6px;border:1px solid transparent;
+  padding:8px 14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--accent);color:#ffffff}
+.btn-primary:hover{background:#0369a1}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text-muted)}
+.btn-ghost:hover{color:var(--text-primary);border-color:var(--text-dim);background:var(--bg-raised)}
+
+/* ===== Workspace ===== */
+.workspace{
+  height:calc(100vh - 88px); /* 56px Header + 32px Footer */
+  display:grid;grid-template-columns:1fr 1px 480px;
+}
+.divider{background:var(--border)}
+
+/* ===== Editor Pane ===== */
+.editor-pane{display:flex;flex-direction:column;min-width:0;background:var(--bg-panel)}
+.pane-title{
+  height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border-soft);background:var(--bg-raised);
+}
+.pane-title .filename{color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px}
+.editor-body{flex:1;display:flex;overflow:hidden;position:relative}
+.gutter{
+  width:48px;flex-shrink:0;background:var(--bg-raised);color:var(--text-dim);
+  font-family:var(--mono);font-size:12.5px;line-height:21px;text-align:right;
+  padding:14px 10px 14px 0;overflow:hidden;user-select:none;border-right:1px solid var(--border-soft);
+}
+.gutter div.err-line{color:var(--error);font-weight:700}
+.gutter div.warn-line{color:var(--warning);font-weight:700}
+.code-scroll{flex:1;position:relative;overflow:hidden}
+textarea{
+  width:100%;height:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text-primary);
+  font:12.5px/21px var(--mono);padding:14px 16px;white-space:pre;overflow:auto;position:absolute;inset:0;
+}
+.minimap{
+  width:14px;flex-shrink:0;background:var(--bg-raised);border-left:1px solid var(--border-soft);
+  position:relative;
+}
+.minimap .tick{position:absolute;left:3px;right:3px;height:3px;border-radius:1px;cursor:pointer}
+.minimap .tick.error{background:var(--error)}
+.minimap .tick.warning{background:var(--warning)}
+
+/* ===== Right Pane (Visualizer + Diagnostics + Activity Log) ===== */
+.right-pane{display:flex;flex-direction:column;background:var(--bg-panel);min-width:0;height:100%;overflow:hidden}
+
+/* Live Visualization Section */
+.preview-container{
+  height:32%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);
+}
+.preview-iframe{
+  width:100%;flex:1;border:none;background:#ffffff;
+}
+
+/* Diagnostics Section */
+.diagnostics-container{
+  flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--border);
+}
+.summary{padding:12px 16px;border-bottom:1px solid var(--border-soft)}
+.summary-row{display:flex;gap:8px}
+.stat{
+  flex:1;border-radius:6px;padding:6px 10px;border:1px solid var(--border);background:var(--bg-raised);
+}
+.stat .num{font-family:var(--mono);font-size:16px;font-weight:700;line-height:1}
+.stat .lbl{font-size:9.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.stat.errors .num{color:var(--error)}
+.stat.warnings .num{color:var(--warning)}
+.stat.clean .num{color:var(--ok)}
+.status-line{
+  font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:4px;display:flex;align-items:center;gap:6px;margin-top:8px;
+}
+.status-line.ok{background:var(--ok-soft);color:var(--ok)}
+.status-line.bad{background:var(--error-soft);color:var(--error)}
+
+.issues-list{flex:1;overflow-y:auto;padding:8px}
+.issue{
+  padding:8px 10px;border-radius:6px;margin-bottom:6px;border:1px solid var(--border-soft);
+  cursor:pointer;transition:.12s;background:var(--bg-raised);
+}
+.issue:hover{border-color:var(--text-dim);background:#ffffff}
+.issue-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.badge{
+  font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;
+  letter-spacing:.4px;text-transform:uppercase;flex-shrink:0;
+}
+.badge.error{background:var(--error-soft);color:var(--error)}
+.badge.warning{background:var(--warning-soft);color:var(--warning)}
+.issue-line{font-family:var(--mono);font-size:10.5px;color:var(--text-dim)}
+.issue-rule{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-left:auto}
+.issue-msg{font-size:11.5px;color:var(--text-primary);line-height:1.4}
+.issue-msg code{
+  background:#ffffff;border:1px solid var(--border);border-radius:3px;padding:1px 4px;
+  font-family:var(--mono);font-size:10.5px;color:var(--accent);
+}
+.empty-state{
+  height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);
+  padding:20px;text-align:center;gap:6px;
+}
+.empty-state .glyph{font-size:24px;color:var(--ok)}
+.empty-state p{font-size:11.5px;margin:0}
+
+/* Event Log Section (Right Bottom) */
+.log-container{
+  height:180px;display:flex;flex-direction:column;background:var(--bg-raised);
+}
+.log-body{
+  flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:11px;display:flex;flex-direction:column;gap:5px;
+}
+.log-item{display:flex;gap:8px;line-height:1.4}
+.log-time{color:var(--text-dim);flex-shrink:0}
+.log-msg{color:var(--text-muted)}
+.log-msg.warn{color:var(--warning);font-weight:600}
+.log-msg.err{color:var(--error);font-weight:600}
+.log-msg.info{color:var(--accent)}
+
+/* ===== Footer ===== */
+footer{
+  height:32px;background:var(--bg-panel);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;padding:0 20px;
+  font-family:var(--mono);font-size:11px;color:var(--text-muted);
+}
+footer b{color:var(--text-primary);font-weight:600}
+
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+</style>
+</head>
+<body>
+
+<!-- User Information Modal -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal-box">
+    <h2>Live viewer</h2>
+    <p>Please enter student information to initialize session tracker.</p>
+    <form id="studentForm">
+      <div class="form-group">
+        <label for="inputName">Full Name</label>
+        <input type="text" id="inputName" placeholder="e.g. John Doe" required>
+      </div>
+      <div class="form-group">
+        <label for="inputReg">Registration Number</label>
+        <input type="text" id="inputReg" placeholder="e.g. REG102030" required>
+      </div>
+      <div class="form-group">
+        <label for="inputBatch">Batch</label>
+        <input type="text" id="inputBatch" placeholder="e.g. 2024-2028" required>
+      </div>
+      <button type="submit" class="submit-btn">Start Session</button>
+    </form>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="brand">
+    <div class="brand-mark">&lt;/&gt;</div>
+    <div>
+      <h1>Live viewer</h1>
+    </div>
+  </div>
+
+  <div class="student-meta" id="studentMeta" style="display:none;">
+    <span>Student: <b id="dispName">-</b></span>
+    <span>Reg No: <b id="dispReg">-</b></span>
+    <span>Batch: <b id="dispBatch">-</b></span>
+    <span>Loaded: <b id="dispLoaded">-</b></span>
+    <span>Duration: <b id="dispDuration">00:00:00</b></span>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-ghost" id="clearBtn">Clear</button>
+    <button class="btn btn-primary" id="analyzeBtn">▸ Analyze</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- Left: Editor Pane -->
+  <section class="editor-pane">
+    <div class="pane-title">
+      <span class="filename" id="filename">editor.html</span>
+      <span id="charCount">0 lines</span>
+    </div>
+    <div class="editor-body">
+      <div class="gutter" id="gutter">1</div>
+      <div class="code-scroll">
+        <textarea id="code" spellcheck="false" placeholder="Write or paste HTML code here..."></textarea>
+      </div>
+      <div class="minimap" id="minimap"></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Right: Visualizer, Diagnostics, Activity Log -->
+  <section class="right-pane">
+    
+    <!-- 1. Live Render Output -->
+    <div class="preview-container">
+      <div class="pane-title">Live Output Visualization</div>
+      <iframe class="preview-iframe" id="livePreview"></iframe>
+    </div>
+
+    <!-- 2. HTML Rules & Diagnostics -->
+    <div class="diagnostics-container">
+      <div class="pane-title">HTML Diagnostics</div>
+      <div class="summary">
+        <div class="summary-row">
+          <div class="stat errors"><div class="num" id="errCount">0</div><div class="lbl">Errors</div></div>
+          <div class="stat warnings"><div class="num" id="warnCount">0</div><div class="lbl">Warnings</div></div>
+          <div class="stat clean"><div class="num" id="checksRun">0</div><div class="lbl">Rules checked</div></div>
+        </div>
+        <div class="status-line ok" id="statusLine">Waiting for markup…</div>
+      </div>
+      <div class="issues-list" id="issuesList">
+        <div class="empty-state">
+          <div class="glyph">◌</div>
+          <p>Click <b>Analyze</b> or type HTML to run diagnostics.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Event Log Pane (Right Bottom) -->
+    <div class="log-container">
+      <div class="pane-title">Session & Activity Log</div>
+      <div class="log-body" id="logBody"></div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <span>© All Rights Reserved | <b>Dr. Titus</b></span>
+</footer>
+
+<script>
+/* ============================================================
+   GLOBAL TRACKING & EVENT LOGGING
+   ============================================================ */
+var startTime = null;
+var timerInterval = null;
+
+function logEvent(msg, type) {
+  type = type || "info";
+  var logBody = document.getElementById("logBody");
+  var now = new Date();
+  var timeStr = now.toTimeString().split(" ")[0];
+  
+  var item = document.createElement("div");
+  item.className = "log-item";
+  item.innerHTML = '<span class="log-time">[' + timeStr + ']</span><span class="log-msg ' + type + '">' + escapeHtml(msg) + '</span>';
+  logBody.appendChild(item);
+  logBody.scrollTop = logBody.scrollHeight;
+}
+
+function updateDuration() {
+  if (!startTime) return;
+  var diff = Math.floor((new Date() - startTime) / 1000);
+  var hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+  var mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+  var secs = String(diff % 60).padStart(2, '0');
+  document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
+}
+
+// Student Details Form Submit Handler
+document.getElementById("studentForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  var name = document.getElementById("inputName").value.trim();
+  var reg = document.getElementById("inputReg").value.trim();
+  var batch = document.getElementById("inputBatch").value.trim();
+
+  if(!name || !reg || !batch) return;
+
+  startTime = new Date();
+  document.getElementById("dispName").textContent = name;
+  document.getElementById("dispReg").textContent = reg;
+  document.getElementById("dispBatch").textContent = batch;
+  document.getElementById("dispLoaded").textContent = startTime.toLocaleTimeString();
+  
+  document.getElementById("studentMeta").style.display = "flex";
+  document.getElementById("userModal").style.display = "none";
+
+  timerInterval = setInterval(updateDuration, 1000);
+
+  logEvent("Session initialized for " + name + " (" + reg + ")", "info");
+  logEvent("Live viewer ready.", "info");
+});
+
+/* ============================================================
+   EVENT & SECURITY CONTROLS (COPY / CUT / PASTE / FOCUS)
+   ============================================================ */
+
+document.addEventListener("copy", function(e) {
+  logEvent("Copy action executed.", "info");
+});
+
+document.addEventListener("cut", function(e) {
+  e.preventDefault();
+  logEvent("Cut attempted (Disabled)", "err");
+});
+
+document.addEventListener("paste", function(e) {
+  e.preventDefault();
+  logEvent("Paste attempted (Disabled)", "err");
+});
+
+window.addEventListener("blur", function() {
+  logEvent("Browser lost focus (Window un-focused)", "warn");
+});
+
+window.addEventListener("focus", function() {
+  logEvent("Browser gained focus", "info");
+});
+
+document.addEventListener("visibilitychange", function() {
+  if (document.hidden) {
+    logEvent("Window minimized or tab switched (Hidden)", "warn");
+  } else {
+    logEvent("Window restored / tab active", "info");
+  }
+});
+
+/* ============================================================
+   REFERENCE DATA FOR HTML VALIDATION
+   ============================================================ */
+var VOID_ELEMENTS = new Set(["area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"]);
+
+var KNOWN_TAGS = new Set([
+"a","abbr","address","area","article","aside","audio","b","base","bdi","bdo","blockquote","body","br",
+"button","canvas","caption","cite","code","col","colgroup","data","datalist","dd","del","details","dfn",
+"dialog","div","dl","dt","em","embed","fieldset","figcaption","figure","footer","form","h1","h2","h3","h4",
+"h5","h6","head","header","hgroup","hr","html","i","iframe","img","input","ins","kbd","label","legend","li",
+"link","main","map","mark","menu","meta","meter","nav","noscript","object","ol","optgroup","option","output",
+"p","param","picture","pre","progress","q","rp","rt","ruby","s","samp","script","section","select","slot",
+"small","source","span","strong","style","sub","summary","sup","table","tbody","td","template","textarea",
+"tfoot","th","thead","time","title","tr","track","u","ul","var","video","wbr","svg","path"
+]);
+
+var DEPRECATED_TAGS = new Set(["acronym","applet","basefont","big","blink","center","dir","font","frame",
+"frameset","isindex","listing","marquee","multicol","nextid","noframes","plaintext","spacer","strike","tt","xmp"]);
+
+var BLOCK_ELEMENTS = new Set(["address","article","aside","blockquote","details","div","dl","fieldset",
+"figcaption","figure","footer","form","h1","h2","h3","h4","h5","h6","header","hr","main","menu","nav","ol",
+"p","pre","section","table","ul"]);
+
+var REQUIRED_PARENT = {
+  li:["ul","ol","menu"], dt:["dl"], dd:["dl"],
+  tr:["table","thead","tbody","tfoot"], td:["tr"], th:["tr"],
+  thead:["table"], tbody:["table"], tfoot:["table"], caption:["table"], colgroup:["table"],
+  option:["select","optgroup","datalist"], optgroup:["select"],
+  figcaption:["figure"], summary:["details"], legend:["fieldset"],
+  source: ["picture","audio","video"], track: ["audio","video"]
+};
+
+var NO_SELF_NEST = new Set(["a","button","label"]);
+
+/* ============================================================
+   TOKENIZER & VALIDATOR
+   ============================================================ */
+function countNewlines(s){ var n=0; for(var i=0;i<s.length;i++) if(s[i]==="\n") n++; return n; }
+
+function tokenize(html){
+  var tokens = [];
+  var i = 0, line = 1, len = html.length;
+  while(i < len){
+    if(html[i] === "<"){
+      if(html.startsWith("<!--", i)){
+        var end = html.indexOf("-->", i+4);
+        var raw = end === -1 ? html.slice(i) : html.slice(i, end+3);
+        tokens.push({type:"comment", raw:raw, line:line});
+        line += countNewlines(raw);
+        i = end === -1 ? len : end+3;
+        continue;
+      }
+      if(html.slice(i, i+2) === "<!"){
+        var end2 = html.indexOf(">", i);
+        var raw2 = end2 === -1 ? html.slice(i) : html.slice(i, end2+1);
+        tokens.push({type:"decl", raw:raw2, line:line});
+        line += countNewlines(raw2);
+        i = end2 === -1 ? len : end2+1;
+        continue;
+      }
+      var j = i+1, inQuote = null;
+      while(j < len){
+        var c = html[j];
+        if(inQuote){ if(c === inQuote) inQuote = null; }
+        else if(c === '"' || c === "'"){ inQuote = c; }
+        else if(c === ">"){ break; }
+        j++;
+      }
+      var rawTag = html.slice(i, Math.min(j+1, len));
+      var tagLine = line;
+      line += countNewlines(rawTag);
+      var closing = rawTag[1] === "/";
+      var m = rawTag.match(/^<\/?\s*([a-zA-Z][a-zA-Z0-9:-]*)/);
+      var tagName = m ? m[1].toLowerCase() : null;
+      var selfClosing = /\/\s*>$/.test(rawTag);
+      var attrsRaw = rawTag.replace(/^<\/?\s*[a-zA-Z][a-zA-Z0-9:-]*/, "").replace(/\/?>\s*$/, "");
+      if(tagName){
+        tokens.push({type: closing ? "close":"open", tagName:tagName, raw:rawTag, attrsRaw:attrsRaw, selfClosing:selfClosing, line:tagLine});
+      }
+      i = j+1;
+      continue;
+    } else {
+      var next = html.indexOf("<", i);
+      if(next === -1) next = len;
+      var text = html.slice(i, next);
+      line += countNewlines(text);
+      i = next;
+    }
+  }
+  return tokens;
+}
+
+function parseAttrs(attrsRaw){
+  var attrs = [];
+  var re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+  var mm;
+  while((mm = re.exec(attrsRaw)) !== null){
+    if(!mm[1]) continue;
+    var hasVal = mm[2] !== undefined;
+    var val = mm[3] !== undefined ? mm[3] : (mm[4] !== undefined ? mm[4] : (mm[5] !== undefined ? mm[5] : ""));
+    var quoted = mm[3] !== undefined || mm[4] !== undefined;
+    attrs.push({name: mm[1].toLowerCase(), value: val, hasVal: hasVal, quoted: quoted});
+  }
+  return attrs;
+}
+
+function getAttr(attrs, name){
+  for(var i=0;i<attrs.length;i++) if(attrs[i].name === name) return attrs[i];
+  return null;
+}
+
+function validate(html){
+  var issues = [];
+  var rulesChecked = 24;
+  function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
+  function warn(line, msg, rule){ issues.push({sev:"warning", line:line, msg:msg, rule:rule}); }
+
+  if(!html.trim()){
+    return {issues:[], rulesChecked: rulesChecked};
+  }
+
+  var tokens = tokenize(html);
+  var stack = [];
+  var idMap = {};
+  var sawDoctype = false;
+  var htmlCount = 0, headCount = 0, bodyCount = 0, titleCount = 0;
+  var htmlLangSeen = false, charsetSeen = false;
+  var firstTagSeen = false;
+
+  for(var t=0; t<tokens.length; t++){
+    var tok = tokens[t];
+
+    if(tok.type === "decl"){
+      if(/^<!doctype/i.test(tok.raw)){
+        sawDoctype = true;
+        if(firstTagSeen) err(tok.line, "The <!DOCTYPE html> declaration must be the very first thing in the file.", "doctype-position");
+        if(!/^<!doctype\s+html\s*>$/i.test(tok.raw.trim())) warn(tok.line, "Use the standard HTML5 doctype: <code>&lt;!DOCTYPE html&gt;</code>.", "doctype-form");
+      } else {
+        warn(tok.line, "Unrecognized declaration " + escapeHtml(tok.raw) + ".", "decl-unknown");
+      }
+      continue;
+    }
+    if(tok.type === "comment") continue;
+
+    if(tok.type === "open"){
+      firstTagSeen = true;
+      var name = tok.tagName;
+      var attrs = parseAttrs(tok.attrsRaw);
+      var parent = stack.length ? stack[stack.length-1].tagName : null;
+
+      if(!KNOWN_TAGS.has(name) && name.indexOf("-") === -1){
+        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is not a recognized standard HTML5 element.", "unknown-tag");
+      }
+      if(DEPRECATED_TAGS.has(name)){
+        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is obsolete/deprecated in HTML5.", "deprecated-tag");
+      }
+
+      var seenAttr = {};
+      for(var a=0; a<attrs.length; a++){
+        var an = attrs[a].name;
+        if(seenAttr[an]) err(tok.line, "Duplicate attribute <code>" + an + "</code> on <code>&lt;" + name + "&gt;</code>.", "dup-attr");
+        seenAttr[an] = true;
+        if(attrs[a].hasVal && !attrs[a].quoted){
+          warn(tok.line, "Attribute <code>" + an + "</code> value should be wrapped in quotes.", "unquoted-attr");
+        }
+      }
+
+      var idAttr = getAttr(attrs, "id");
+      if(idAttr && idAttr.value){
+        if(idMap[idAttr.value] !== undefined){
+          err(tok.line, "Duplicate <code>id=\"" + idAttr.value + "\"</code> — already used on line " + idMap[idAttr.value] + ".", "dup-id");
+        } else {
+          idMap[idAttr.value] = tok.line;
+        }
+      }
+
+      if(name === "html"){
+        htmlCount++;
+        if(getAttr(attrs,"lang")) htmlLangSeen = true;
+        if(htmlCount > 1) err(tok.line, "More than one <code>&lt;html&gt;</code> element found.", "multi-html");
+      }
+      if(name === "head"){ headCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;head&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "head-parent"); }
+      if(name === "body"){ bodyCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;body&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "body-parent"); }
+      if(name === "title"){
+        titleCount++;
+        if(titleCount > 1) warn(tok.line, "More than one <code>&lt;title&gt;</code> found.", "multi-title");
+      }
+      if(name === "meta"){
+        if(getAttr(attrs,"charset") || (getAttr(attrs,"http-equiv") && getAttr(attrs,"content"))) charsetSeen = true;
+        if(!getAttr(attrs,"charset") && !getAttr(attrs,"name") && !getAttr(attrs,"http-equiv")){
+          warn(tok.line, "<code>&lt;meta&gt;</code> tag has no <code>charset</code>, <code>name</code> or <code>http-equiv</code> attribute.", "meta-empty");
+        }
+      }
+
+      if(REQUIRED_PARENT[name]){
+        var allowed = REQUIRED_PARENT[name];
+        if(!parent || allowed.indexOf(parent) === -1){
+          err(tok.line, "<code>&lt;" + name + "&gt;</code> should be placed directly inside " +
+              allowed.map(function(x){return "<code>&lt;"+x+"&gt;</code>";}).join(" or ") +
+              (parent ? ", not <code>&lt;" + parent + "&gt;</code>." : "."), "bad-nesting");
+        }
+      }
+
+      if(NO_SELF_NEST.has(name)){
+        for(var s=0; s<stack.length; s++){
+          if(stack[s].tagName === name){
+            err(tok.line, "<code>&lt;" + name + "&gt;</code> cannot be nested inside another <code>&lt;" + name + "&gt;</code>.", "self-nest");
+            break;
+          }
+        }
+      }
+
+      if(BLOCK_ELEMENTS.has(name) && name !== "p"){
+        for(var s2=0; s2<stack.length; s2++){
+          if(stack[s2].tagName === "p"){
+            err(tok.line, "Block element <code>&lt;" + name + "&gt;</code> cannot appear inside <code>&lt;p&gt;</code>.", "block-in-p");
+            break;
+          }
+        }
+      }
+
+      if(name === "img"){
+        if(!getAttr(attrs,"src")) err(tok.line, "<code>&lt;img&gt;</code> is missing a <code>src</code> attribute.", "req-attr");
+        if(!getAttr(attrs,"alt")) err(tok.line, "<code>&lt;img&gt;</code> is missing an <code>alt</code> attribute.", "req-attr");
+      }
+
+      if(!VOID_ELEMENTS.has(name)){
+        stack.push({tagName:name, line:tok.line});
+        if(tok.selfClosing){
+          warn(tok.line, "Self-closing syntax on non-void element <code>&lt;" + name + " /&gt;</code>.", "invalid-self-close");
+        }
+      }
+      continue;
+    }
+
+    if(tok.type === "close"){
+      var cname = tok.tagName;
+      if(VOID_ELEMENTS.has(cname)){
+        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> — void element must not have closing tag.", "void-close");
+        continue;
+      }
+      if(stack.length === 0){
+        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> found with no matching opening tag.", "stray-close");
+        continue;
+      }
+      if(stack[stack.length-1].tagName === cname){
+        stack.pop();
+      } else {
+        var foundAt = -1;
+        for(var k=stack.length-1; k>=0; k--){
+          if(stack[k].tagName === cname){ foundAt = k; break; }
+        }
+        if(foundAt === -1){
+          err(tok.line, "<code>&lt;/" + cname + "&gt;</code> does not match any currently open tag.", "unmatched-close");
+        } else {
+          err(tok.line, "Mismatched closing tag: expected <code>&lt;/" + stack[stack.length-1].tagName + "&gt;</code> but found <code>&lt;/" + cname + "&gt;</code>.", "mismatch-close");
+          stack.length = foundAt;
+        }
+      }
+      continue;
+    }
+  }
+
+  for(var u=0; u<stack.length; u++){
+    err(stack[u].line, "<code>&lt;" + stack[u].tagName + "&gt;</code> is never closed.", "unclosed");
+  }
+
+  if(!sawDoctype) err(1, "Missing <code>&lt;!DOCTYPE html&gt;</code> declaration.", "missing-doctype");
+  if(htmlCount === 0) err(1, "Missing root <code>&lt;html&gt;</code> element.", "missing-html");
+  if(headCount === 0) warn(1, "Missing <code>&lt;head&gt;</code> element.", "missing-head");
+  if(bodyCount === 0) warn(1, "Missing <code>&lt;body&gt;</code> element.", "missing-body");
+  if(titleCount === 0) err(1, "Missing <code>&lt;title&gt;</code> element inside &lt;head&gt;.", "missing-title");
+
+  return {issues: issues, rulesChecked: rulesChecked};
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/* ============================================================
+   UI & REALTIME WORKSPACE WIRING
+   ============================================================ */
+var codeEl = document.getElementById("code");
+var gutterEl = document.getElementById("gutter");
+var minimapEl = document.getElementById("minimap");
+var issuesListEl = document.getElementById("issuesList");
+var errCountEl = document.getElementById("errCount");
+var warnCountEl = document.getElementById("warnCount");
+var checksRunEl = document.getElementById("checksRun");
+var statusLineEl = document.getElementById("statusLine");
+var charCountEl = document.getElementById("charCount");
+var livePreview = document.getElementById("livePreview");
+
+function updateGutter(){
+  var lines = codeEl.value.split("\n").length;
+  var out = "";
+  for(var i=1;i<=lines;i++) out += i + "\n";
+  gutterEl.textContent = out;
+  charCountEl.textContent = lines + (lines===1?" line":" lines");
+}
+
+function updateLivePreview(){
+  livePreview.srcdoc = codeEl.value;
+}
+
+codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
+codeEl.addEventListener("input", function(){
+  updateGutter();
+  updateLivePreview();
+  runAnalysis();
+});
+
+function jumpToLine(line){
+  var lines = codeEl.value.split("\n");
+  var idx = 0;
+  for(var i=0;i<Math.min(line-1, lines.length); i++) idx += lines[i].length + 1;
+  codeEl.focus();
+  codeEl.setSelectionRange(idx, idx + (lines[line-1] ? lines[line-1].length : 0));
+  codeEl.scrollTop = Math.max(0, (line-1) * 21 - codeEl.clientHeight/2);
+  gutterEl.scrollTop = codeEl.scrollTop;
+}
+
+function render(result){
+  var issues = result.issues;
+  var errors = issues.filter(function(i){return i.sev==="error";});
+  var warnings = issues.filter(function(i){return i.sev==="warning";});
+
+  errCountEl.textContent = errors.length;
+  warnCountEl.textContent = warnings.length;
+  checksRunEl.textContent = result.rulesChecked;
+
+  if(!codeEl.value.trim()){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "Waiting for markup…";
+  } else if(errors.length === 0 && warnings.length === 0){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "✓ Markup structure valid";
+  } else if(errors.length === 0){
+    statusLineEl.className = "status-line ok";
+    statusLineEl.textContent = "✓ No errors — " + warnings.length + " warning(s)";
+  } else {
+    statusLineEl.className = "status-line bad";
+    statusLineEl.textContent = "✗ " + errors.length + " error(s) found";
+  }
+
+  var lineMap = {};
+  issues.forEach(function(iss){
+    if(!lineMap[iss.line] || iss.sev==="error") lineMap[iss.line] = iss.sev;
+  });
+  var gutterLines = codeEl.value.split("\n").length;
+  var gHtml = "";
+  for(var i=1;i<=gutterLines;i++){
+    var cls = lineMap[i] === "error" ? " class=\"err-line\"" : (lineMap[i]==="warning" ? " class=\"warn-line\"" : "");
+    gHtml += "<div" + cls + ">" + i + "</div>";
+  }
+  gutterEl.innerHTML = gHtml;
+
+  minimapEl.innerHTML = "";
+  var totalLines = Math.max(gutterLines,1);
+  issues.forEach(function(iss){
+    var tick = document.createElement("div");
+    tick.className = "tick " + iss.sev;
+    var pct = Math.min(98, (iss.line-1)/totalLines*100);
+    tick.style.top = pct + "%";
+    tick.addEventListener("click", function(l){ return function(){ jumpToLine(l); }; }(iss.line));
+    minimapEl.appendChild(tick);
+  });
+
+  if(issues.length === 0){
+    issuesListEl.innerHTML = "";
+    var empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = !codeEl.value.trim() ? 
+      '<div class="glyph">◌</div><p>Type or paste HTML code to analyze.</p>' : 
+      '<div class="glyph">✓</div><p>No structural issues detected.</p>';
+    issuesListEl.appendChild(empty);
+    return;
+  }
+
+  var sorted = errors.concat(warnings);
+  issuesListEl.innerHTML = "";
+  sorted.forEach(function(iss){
+    var div = document.createElement("div");
+    div.className = "issue";
+    div.innerHTML =
+      '<div class="issue-head">' +
+        '<span class="badge ' + iss.sev + '">' + iss.sev + '</span>' +
+        '<span class="issue-line">Line ' + iss.line + '</span>' +
+        '<span class="issue-rule">' + iss.rule + '</span>' +
+      '</div>' +
+      '<div class="issue-msg">' + iss.msg + '</div>';
+    div.addEventListener("click", function(l){ return function(){ jumpToLine(l); }; }(iss.line));
+    issuesListEl.appendChild(div);
+  });
+}
+
+function runAnalysis(){
+  var result = validate(codeEl.value);
+  render(result);
+}
+
+document.getElementById("analyzeBtn").addEventListener("click", function(){
+  runAnalysis();
+  logEvent("Manual diagnostic analysis executed.", "info");
+});
+
+document.getElementById("clearBtn").addEventListener("click", function(){
+  codeEl.value = "";
+  updateGutter();
+  updateLivePreview();
+  runAnalysis();
+  logEvent("Editor cleared.", "info");
+});
+
+// Initialization
+updateGutter();
+updateLivePreview();
+runAnalysis();
+</script>
+</body>
+</html>
