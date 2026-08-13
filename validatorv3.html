@@ -8,13 +8,13 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg-deep:#f4f6f8;
+  --bg-deep:#f8fafc;
   --bg-panel:#ffffff;
-  --bg-raised:#f8fafc;
+  --bg-raised:#f1f5f9;
   --border:#e2e8f0;
   --border-soft:#edf2f7;
-  --text-primary:#1a202c;
-  --text-muted:#64748b;
+  --text-primary:#0f172a;
+  --text-muted:#475569;
   --text-dim:#94a3b8;
   --accent:#0284c7;
   --accent-soft:rgba(2, 132, 199, 0.08);
@@ -369,7 +369,7 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
 });
 
 /* ============================================================
-   EVENT & SECURITY CONTROLS (COPY / CUT / PASTE / FOCUS)
+   EVENT & SECURITY CONTROLS (COPY / CUT / PASTE / FOCUS / RESIZE)
    ============================================================ */
 
 document.addEventListener("copy", function(e) {
@@ -400,6 +400,15 @@ document.addEventListener("visibilitychange", function() {
   } else {
     logEvent("Window restored / tab active", "info");
   }
+});
+
+// Browser Resizing Log Handler (Debounced)
+var resizeTimeout;
+window.addEventListener("resize", function() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(function() {
+    logEvent("Browser window resized (" + window.innerWidth + "x" + window.innerHeight + "px)", "info");
+  }, 400);
 });
 
 /* ============================================================
@@ -809,12 +818,25 @@ document.getElementById("analyzeBtn").addEventListener("click", function(){
   logEvent("Manual diagnostic analysis executed.", "info");
 });
 
+// Clear Button Listener with Confirmation Prompt
 document.getElementById("clearBtn").addEventListener("click", function(){
-  codeEl.value = "";
-  updateGutter();
-  updateLivePreview();
-  runAnalysis();
-  logEvent("Editor cleared.", "info");
+  if (codeEl.value.trim().length > 0) {
+    var confirmed = confirm("Are you sure you want to clear the editor?");
+    if (confirmed) {
+      codeEl.value = "";
+      updateGutter();
+      updateLivePreview();
+      runAnalysis();
+      logEvent("Editor cleared by user.", "info");
+    } else {
+      logEvent("Clear action cancelled by user.", "info");
+    }
+  } else {
+    codeEl.value = "";
+    updateGutter();
+    updateLivePreview();
+    runAnalysis();
+  }
 });
 
 // Initialization
