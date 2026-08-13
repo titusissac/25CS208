@@ -85,7 +85,7 @@ header{
 
 /* ===== Workspace Layout (60% Editor / 40% Right Pane) ===== */
 .workspace{
-  height:calc(100vh - 88px); /* 56px Header + 32px Footer */
+  height:calc(100vh - 88px);
   display:grid;grid-template-columns: calc(60% - 1px) 1px 40%;
 }
 .divider{background:var(--border)}
@@ -110,6 +110,7 @@ header{
 textarea{
   width:100%;height:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text-primary);
   font:12.5px/21px var(--mono);padding:14px 16px;white-space:pre;overflow:auto;position:absolute;inset:0;
+  transition: background 0.2s ease;
 }
 .minimap{
   width:14px;flex-shrink:0;background:var(--bg-raised);border-left:1px solid var(--border-soft);
@@ -282,6 +283,8 @@ footer b{color:var(--text-primary);font-weight:600}
   </div>
 
   <div class="header-actions">
+    <input type="file" id="imageFileInput" accept="image/*,video/*,audio/*" multiple style="display:none;">
+    <button class="btn btn-ghost" id="attachImageBtn" title="Select files from local system">📁 Attach System Files</button>
     <button class="btn btn-ghost" id="printBtn">🖨 Print Report</button>
     <button class="btn btn-ghost" id="clearBtn">Clear</button>
     <button class="btn btn-primary" id="analyzeBtn">▸ Analyze</button>
@@ -299,7 +302,7 @@ footer b{color:var(--text-primary);font-weight:600}
     <div class="editor-body">
       <div class="gutter" id="gutter">1</div>
       <div class="code-scroll">
-        <textarea id="code" spellcheck="false" placeholder="Write or paste HTML code here..."></textarea>
+        <textarea id="code" spellcheck="false" placeholder="Write HTML here or drag & drop images/videos directly into this window..."></textarea>
       </div>
       <div class="minimap" id="minimap"></div>
     </div>
@@ -366,6 +369,8 @@ footer b{color:var(--text-primary);font-weight:600}
    ============================================================ */
 var startTime = null;
 var timerInterval = null;
+var localImageMap = {}; 
+var renderDebounceTimer = null;
 
 function logEvent(msg, type) {
   type = type || "info";
@@ -389,13 +394,11 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
-// Format Date as DD Mon YYYY (e.g., 13 Aug 2026)
 function getFormattedDate(d) {
   var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
 }
 
-// Student Details Submission & Title Bar Update
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var name = document.getElementById("inputName").value.trim();
@@ -429,61 +432,104 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
 });
 
 /* ============================================================
-   RELOAD / EXIT CONFIRMATION PROMPT (SITE-WIDE REFRESH ONLY)
+   SYSTEM MEDIA FILE ATTACHMENT & DRAG-AND-DROP HANDLER
+   ============================================================ */
+function registerLocalFiles(files) {
+  if (!files || files.length === 0) return;
+  
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    var objectUrl = URL.createObjectURL(file);
+    localImageMap[file.name.toLowerCase()] = objectUrl;
+    logEvent("System media loaded: " + file.name, "info");
+  }
+}
+
+document.getElementById("attachImageBtn").addEventListener("click", function() {
+  document.getElementById("imageFileInput").click();
+});
+
+document.getElementById("imageFileInput").addEventListener("change", function(e) {
+  registerLocalFiles(e.target.files);
+  updateLivePreview();
+});
+
+var codeTextarea = document.getElementById("code");
+
+codeTextarea.addEventListener("dragover", function(e) {
+  e.preventDefault();
+  codeTextarea.style.background = "var(--accent-soft)";
+});
+
+codeTextarea.addEventListener("dragleave", function(e) {
+  e.preventDefault();
+  codeTextarea.style.background = "transparent";
+});
+
+codeTextarea.addEventListener("drop", function(e) {
+  e.preventDefault();
+  codeTextarea.style.background = "transparent";
+  var files = e.dataTransfer.files;
+  if (files && files.length > 0) {
+    registerLocalFiles(files);
+    
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      var tag = "";
+      if (file.type.startsWith("image/")) {
+        tag = '<img src="' + file.name + '" alt="' + file.name.split('.')[0] + '">\n';
+      } else if (file.type.startsWith("video/")) {
+        tag = '<video src="' + file.name + '" controls width="100%"></video>\n';
+      } else if (file.type.startsWith("audio/")) {
+        tag = '<audio src="' + file.name + '" controls></audio>\n';
+      } else {
+        tag = '<a href="' + file.name + '">' + file.name + '</a>\n';
+      }
+      
+      var startPos = codeTextarea.selectionStart;
+      var endPos = codeTextarea.selectionEnd;
+      codeTextarea.value = codeTextarea.value.substring(0, startPos) + tag + codeTextarea.value.substring(endPos);
+      codeTextarea.selectionStart = codeTextarea.selectionEnd = startPos + tag.length;
+    }
+    
+    updateGutter();
+    scheduleDebouncedUpdate();
+  }
+});
+
+/* ============================================================
+   RELOAD / EXIT CONFIRMATION PROMPT
    ============================================================ */
 var isUpdatingPreview = false;
 
 window.addEventListener("beforeunload", function (e) {
   if (isUpdatingPreview) return;
-  
   e.preventDefault();
   e.returnValue = "Are you sure you want to reload or leave? Your current work and logs will be lost.";
   return e.returnValue;
 });
 
 /* ============================================================
-   EVENT & SECURITY CONTROLS (PASTE LOGGING, COPY, FOCUS, RESIZE)
+   EVENT & SECURITY CONTROLS
    ============================================================ */
-
-document.addEventListener("copy", function(e) {
-  logEvent("Copy action executed.", "info");
-});
-
-document.addEventListener("cut", function(e) {
-  e.preventDefault();
-  logEvent("Cut attempted (Disabled)", "err");
-});
-
+document.addEventListener("copy", function(e) { logEvent("Copy action executed.", "info"); });
+document.addEventListener("cut", function(e) { e.preventDefault(); logEvent("Cut attempted (Disabled)", "err"); });
 document.addEventListener("paste", function(e) {
   var pastedText = "";
   if (e.clipboardData && e.clipboardData.getData) {
     pastedText = e.clipboardData.getData('text/plain');
-  } else if (window.clipboardData && window.clipboardData.getData) {
-    pastedText = window.clipboardData.getData('Text');
   }
-  
   if (pastedText) {
     var previewText = pastedText.length > 100 ? pastedText.substring(0, 100) + "... [truncated]" : pastedText;
     logEvent("Pasted Content: \"" + previewText.replace(/\r?\n|\r/g, " ") + "\"", "warn");
-  } else {
-    logEvent("Paste action executed.", "info");
   }
 });
 
-window.addEventListener("blur", function() {
-  logEvent("Browser lost focus (Window un-focused)", "warn");
-});
-
-window.addEventListener("focus", function() {
-  logEvent("Browser gained focus", "info");
-});
-
+window.addEventListener("blur", function() { logEvent("Browser lost focus (Window un-focused)", "warn"); });
+window.addEventListener("focus", function() { logEvent("Browser gained focus", "info"); });
 document.addEventListener("visibilitychange", function() {
-  if (document.hidden) {
-    logEvent("Window minimized or tab switched (Hidden)", "warn");
-  } else {
-    logEvent("Window restored / tab active", "info");
-  }
+  if (document.hidden) { logEvent("Window minimized or tab switched (Hidden)", "warn"); } 
+  else { logEvent("Window restored / tab active", "info"); }
 });
 
 var resizeTimeout;
@@ -575,12 +621,16 @@ var KNOWN_TAGS = new Set([
 "tfoot","th","thead","time","title","tr","track","u","ul","var","video","wbr","svg","path"
 ]);
 
-var DEPRECATED_TAGS = new Set(["acronym","applet","basefont","big","blink","center","dir","font","frame",
-"frameset","isindex","listing","marquee","multicol","nextid","noframes","plaintext","spacer","strike","tt","xmp"]);
+var DEPRECATED_TAGS = new Set([
+"acronym","applet","basefont","big","blink","center","comment","dir","font","frame",
+"frameset","isindex","listing","marquee","multicol","nextid","nobr","noframes","plaintext","spacer","strike","tt","xmp"
+]);
 
 var BLOCK_ELEMENTS = new Set(["address","article","aside","blockquote","details","div","dl","fieldset",
 "figcaption","figure","footer","form","h1","h2","h3","h4","h5","h6","header","hr","main","menu","nav","ol",
 "p","pre","section","table","ul"]);
+
+var INLINE_ELEMENTS = new Set(["a","abbr","b","bdo","cite","code","dfn","em","i","kbd","label","mark","q","s","samp","small","span","strong","sub","sup","time","u","var"]);
 
 var REQUIRED_PARENT = {
   li:["ul","ol","menu"], dt:["dl"], dd:["dl"],
@@ -591,10 +641,10 @@ var REQUIRED_PARENT = {
   source: ["picture","audio","video"], track: ["audio","video"]
 };
 
-var NO_SELF_NEST = new Set(["a","button","label"]);
+var NO_SELF_NEST = new Set(["a","button","label","form"]);
 
 /* ============================================================
-   TOKENIZER & VALIDATOR
+   TOKENIZER & COMPREHENSIVE VALIDATOR
    ============================================================ */
 function countNewlines(s){ var n=0; for(var i=0;i<s.length;i++) if(s[i]==="\n") n++; return n; }
 
@@ -603,19 +653,27 @@ function tokenize(html){
   var i = 0, line = 1, len = html.length;
   while(i < len){
     if(html[i] === "<"){
+      // Robust HTML Comment Tokenizer
       if(html.startsWith("<!--", i)){
         var end = html.indexOf("-->", i+4);
-        var raw = end === -1 ? html.slice(i) : html.slice(i, end+3);
-        tokens.push({type:"comment", raw:raw, line:line});
-        line += countNewlines(raw);
-        i = end === -1 ? len : end+3;
+        if (end === -1) {
+          var raw = html.slice(i);
+          tokens.push({type:"comment", raw:raw, line:line, unclosed:true});
+          line += countNewlines(raw);
+          i = len;
+        } else {
+          var raw2 = html.slice(i, end+3);
+          tokens.push({type:"comment", raw:raw2, line:line, unclosed:false});
+          line += countNewlines(raw2);
+          i = end + 3;
+        }
         continue;
       }
       if(html.slice(i, i+2) === "<!"){
         var end2 = html.indexOf(">", i);
-        var raw2 = end2 === -1 ? html.slice(i) : html.slice(i, end2+1);
-        tokens.push({type:"decl", raw:raw2, line:line});
-        line += countNewlines(raw2);
+        var rawDecl = end2 === -1 ? html.slice(i) : html.slice(i, end2+1);
+        tokens.push({type:"decl", raw:rawDecl, line:line});
+        line += countNewlines(rawDecl);
         i = end2 === -1 ? len : end2+1;
         continue;
       }
@@ -672,7 +730,7 @@ function getAttr(attrs, name){
 
 function validate(html){
   var issues = [];
-  var rulesChecked = 24;
+  var rulesChecked = 35;
   function err(line, msg, rule){ issues.push({sev:"error", line:line, msg:msg, rule:rule}); }
   function warn(line, msg, rule){ issues.push({sev:"warning", line:line, msg:msg, rule:rule}); }
 
@@ -691,6 +749,13 @@ function validate(html){
   for(var t=0; t<tokens.length; t++){
     var tok = tokens[t];
 
+    if(tok.type === "comment"){
+      if(tok.unclosed){
+        err(tok.line, "Unclosed HTML comment starting with <code>&lt;!--</code>. Ensure it is closed with <code>--&gt;</code>.", "unclosed-comment");
+      }
+      continue;
+    }
+
     if(tok.type === "decl"){
       if(/^<!doctype/i.test(tok.raw)){
         sawDoctype = true;
@@ -701,7 +766,6 @@ function validate(html){
       }
       continue;
     }
-    if(tok.type === "comment") continue;
 
     if(tok.type === "open"){
       firstTagSeen = true;
@@ -709,11 +773,12 @@ function validate(html){
       var attrs = parseAttrs(tok.attrsRaw);
       var parent = stack.length ? stack[stack.length-1].tagName : null;
 
-      if(!KNOWN_TAGS.has(name) && name.indexOf("-") === -1){
-        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is not a recognized standard HTML5 element.", "unknown-tag");
-      }
-      if(DEPRECATED_TAGS.has(name)){
+      if(name === "comment"){
+        warn(tok.line, "<code>&lt;comment&gt;</code> is an obsolete tag. Use standard HTML comment syntax <code>&lt;!-- comment text --&gt;</code> instead.", "deprecated-tag");
+      } else if(DEPRECATED_TAGS.has(name)){
         warn(tok.line, "<code>&lt;" + name + "&gt;</code> is obsolete/deprecated in HTML5.", "deprecated-tag");
+      } else if(!KNOWN_TAGS.has(name) && name.indexOf("-") === -1){
+        warn(tok.line, "<code>&lt;" + name + "&gt;</code> is not a recognized standard HTML5 element.", "unknown-tag");
       }
 
       var seenAttr = {};
@@ -740,17 +805,23 @@ function validate(html){
         if(getAttr(attrs,"lang")) htmlLangSeen = true;
         if(htmlCount > 1) err(tok.line, "More than one <code>&lt;html&gt;</code> element found.", "multi-html");
       }
-      if(name === "head"){ headCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;head&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "head-parent"); }
-      if(name === "body"){ bodyCount++; if(parent && parent !== "html") warn(tok.line, "<code>&lt;body&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "body-parent"); }
+      if(name === "head"){ 
+        headCount++; 
+        if(headCount > 1) err(tok.line, "More than one <code>&lt;head&gt;</code> element found.", "multi-head");
+        if(parent && parent !== "html") warn(tok.line, "<code>&lt;head&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "head-parent"); 
+      }
+      if(name === "body"){ 
+        bodyCount++; 
+        if(bodyCount > 1) err(tok.line, "More than one <code>&lt;body&gt;</code> element found.", "multi-body");
+        if(parent && parent !== "html") warn(tok.line, "<code>&lt;body&gt;</code> should be a direct child of <code>&lt;html&gt;</code>.", "body-parent"); 
+      }
       if(name === "title"){
         titleCount++;
         if(titleCount > 1) warn(tok.line, "More than one <code>&lt;title&gt;</code> found.", "multi-title");
+        if(parent && parent !== "head") err(tok.line, "<code>&lt;title&gt;</code> must be placed directly inside <code>&lt;head&gt;</code>.", "title-parent");
       }
       if(name === "meta"){
         if(getAttr(attrs,"charset") || (getAttr(attrs,"http-equiv") && getAttr(attrs,"content"))) charsetSeen = true;
-        if(!getAttr(attrs,"charset") && !getAttr(attrs,"name") && !getAttr(attrs,"http-equiv")){
-          warn(tok.line, "<code>&lt;meta&gt;</code> tag has no <code>charset</code>, <code>name</code> or <code>http-equiv</code> attribute.", "meta-empty");
-        }
       }
 
       if(REQUIRED_PARENT[name]){
@@ -771,24 +842,47 @@ function validate(html){
         }
       }
 
-      if(BLOCK_ELEMENTS.has(name) && name !== "p"){
+      if(BLOCK_ELEMENTS.has(name)){
         for(var s2=0; s2<stack.length; s2++){
-          if(stack[s2].tagName === "p"){
+          var stTag = stack[s2].tagName;
+          if(stTag === "p"){
             err(tok.line, "Block element <code>&lt;" + name + "&gt;</code> cannot appear inside <code>&lt;p&gt;</code>.", "block-in-p");
+            break;
+          } else if(INLINE_ELEMENTS.has(stTag) && stTag !== "a"){
+            err(tok.line, "Block element <code>&lt;" + name + "&gt;</code> cannot appear inside inline element <code>&lt;" + stTag + "&gt;</code>.", "block-in-inline");
             break;
           }
         }
       }
 
+      // Mandatory attribute enforcement
       if(name === "img"){
-        if(!getAttr(attrs,"src")) err(tok.line, "<code>&lt;img&gt;</code> is missing a <code>src</code> attribute.", "req-attr");
-        if(!getAttr(attrs,"alt")) err(tok.line, "<code>&lt;img&gt;</code> is missing an <code>alt</code> attribute.", "req-attr");
+        if(!getAttr(attrs,"src")) err(tok.line, "<code>&lt;img&gt;</code> is missing mandatory <code>src</code> attribute.", "req-attr");
+        if(!getAttr(attrs,"alt")) err(tok.line, "<code>&lt;img&gt;</code> is missing mandatory <code>alt</code> attribute.", "req-attr");
+      }
+      if(name === "source" && !getAttr(attrs,"src")){
+        err(tok.line, "<code>&lt;source&gt;</code> tag requires a <code>src</code> attribute.", "req-attr");
+      }
+      if(name === "iframe" && !getAttr(attrs,"src") && !getAttr(attrs,"srcdoc")){
+        err(tok.line, "<code>&lt;iframe&gt;</code> tag requires a <code>src</code> attribute.", "req-attr");
+      }
+      if(name === "a" && !getAttr(attrs,"href") && !getAttr(attrs,"name")){
+        warn(tok.line, "Hyperlink <code>&lt;a&gt;</code> tag is missing an <code>href</code> attribute.", "opt-attr");
+      }
+      if(name === "input" && !getAttr(attrs,"type")){
+        warn(tok.line, "<code>&lt;input&gt;</code> tag is missing an explicit <code>type</code> attribute.", "opt-attr");
+      }
+      if(name === "label" && !getAttr(attrs,"for")){
+        warn(tok.line, "<code>&lt;label&gt;</code> tag should have a <code>for</code> attribute linked to input ID.", "opt-attr");
+      }
+      if(name === "form" && !getAttr(attrs,"action")){
+        warn(tok.line, "<code>&lt;form&gt;</code> tag is missing an <code>action</code> attribute.", "opt-attr");
       }
 
       if(!VOID_ELEMENTS.has(name)){
         stack.push({tagName:name, line:tok.line});
         if(tok.selfClosing){
-          warn(tok.line, "Self-closing syntax on non-void element <code>&lt;" + name + " /&gt;</code>.", "invalid-self-close");
+          warn(tok.line, "Self-closing syntax on non-void element <code>&lt;" + name + " /&gt;</code> is invalid in HTML5.", "invalid-self-close");
         }
       }
       continue;
@@ -797,11 +891,11 @@ function validate(html){
     if(tok.type === "close"){
       var cname = tok.tagName;
       if(VOID_ELEMENTS.has(cname)){
-        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> — void element must not have closing tag.", "void-close");
+        err(tok.line, "Void element <code>&lt;" + cname + "&gt;</code> must not have a closing <code>&lt;/" + cname + "&gt;</code> tag.", "void-close");
         continue;
       }
       if(stack.length === 0){
-        err(tok.line, "<code>&lt;/" + cname + "&gt;</code> found with no matching opening tag.", "stray-close");
+        err(tok.line, "Stray closing tag <code>&lt;/" + cname + "&gt;</code> found with no matching opening tag.", "stray-close");
         continue;
       }
       if(stack[stack.length-1].tagName === cname){
@@ -812,7 +906,7 @@ function validate(html){
           if(stack[k].tagName === cname){ foundAt = k; break; }
         }
         if(foundAt === -1){
-          err(tok.line, "<code>&lt;/" + cname + "&gt;</code> does not match any currently open tag.", "unmatched-close");
+          err(tok.line, "Closing tag <code>&lt;/" + cname + "&gt;</code> does not match any currently open tag.", "unmatched-close");
         } else {
           err(tok.line, "Mismatched closing tag: expected <code>&lt;/" + stack[stack.length-1].tagName + "&gt;</code> but found <code>&lt;/" + cname + "&gt;</code>.", "mismatch-close");
           stack.length = foundAt;
@@ -823,14 +917,16 @@ function validate(html){
   }
 
   for(var u=0; u<stack.length; u++){
-    err(stack[u].line, "<code>&lt;" + stack[u].tagName + "&gt;</code> is never closed.", "unclosed");
+    err(stack[u].line, "Opening tag <code>&lt;" + stack[u].tagName + "&gt;</code> is never closed.", "unclosed");
   }
 
   if(!sawDoctype) err(1, "Missing <code>&lt;!DOCTYPE html&gt;</code> declaration.", "missing-doctype");
   if(htmlCount === 0) err(1, "Missing root <code>&lt;html&gt;</code> element.", "missing-html");
+  if(!htmlLangSeen && htmlCount > 0) warn(1, "The root <code>&lt;html&gt;</code> tag should declare a language attribute (e.g. <code>&lt;html lang=\"en\"&gt;</code>).", "missing-lang");
   if(headCount === 0) warn(1, "Missing <code>&lt;head&gt;</code> element.", "missing-head");
+  if(!charsetSeen && headCount > 0) warn(1, "Missing <code>&lt;meta charset=\"UTF-8\"&gt;</code> inside &lt;head&gt;.", "missing-charset");
   if(bodyCount === 0) warn(1, "Missing <code>&lt;body&gt;</code> element.", "missing-body");
-  if(titleCount === 0) err(1, "Missing <code>&lt;title&gt;</code> element inside &lt;head&gt;.", "missing-title");
+  if(titleCount === 0) err(1, "Missing mandatory <code>&lt;title&gt;</code> element inside &lt;head&gt;.", "missing-title");
 
   return {issues: issues, rulesChecked: rulesChecked};
 }
@@ -867,10 +963,18 @@ function updateLivePreview(){
   isUpdatingPreview = true;
   var rawCode = codeEl.value;
   
-  // Format Windows local paths (D:\KITS\...) into valid browser URLs (file:///D:/KITS/...)
-  var processedCode = rawCode.replace(/src=["']([a-zA-Z]:\\[^"']+)["']/g, function(match, path) {
-    var formattedPath = "file:///" + path.replace(/\\/g, "/");
-    return 'src="' + formattedPath + '"';
+  var processedCode = rawCode.replace(/src=["']([^"']+)["']/gi, function(match, path) {
+    var fileName = path.split(/[\/\\]/).pop().toLowerCase();
+    
+    if (localImageMap[fileName]) {
+      return 'src="' + localImageMap[fileName] + '"';
+    }
+    
+    if (/^[a-zA-Z]:\\/.test(path)) {
+      return 'src="file:///' + path.replace(/\\/g, "/") + '"';
+    }
+    
+    return match;
   });
 
   var baseUrl = '<base href="https://titusissac.github.io/25CS208/">';
@@ -880,6 +984,14 @@ function updateLivePreview(){
   setTimeout(function() {
     isUpdatingPreview = false;
   }, 50);
+}
+
+function scheduleDebouncedUpdate() {
+  clearTimeout(renderDebounceTimer);
+  renderDebounceTimer = setTimeout(function() {
+    updateLivePreview();
+    runAnalysis();
+  }, 150);
 }
 
 /* ============================================================
@@ -913,8 +1025,7 @@ document.getElementById("zoomResetBtn").addEventListener("click", function(){
 codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
 codeEl.addEventListener("input", function(){
   updateGutter();
-  updateLivePreview();
-  runAnalysis();
+  scheduleDebouncedUpdate();
 });
 
 function jumpToLine(line){
