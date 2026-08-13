@@ -123,10 +123,23 @@ textarea{
 .right-pane{display:flex;flex-direction:column;background:var(--bg-panel);min-width:0;height:100%;overflow:hidden}
 
 .preview-container{
-  height:35%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);
+  height:40%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);overflow:hidden;
+}
+.zoom-controls{
+  display:flex;align-items:center;gap:4px;
+}
+.zoom-btn{
+  background:var(--bg-panel);border:1px solid var(--border);color:var(--text-primary);
+  border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;cursor:pointer;
+}
+.zoom-btn:hover{background:var(--bg-raised);border-color:var(--text-dim);}
+#zoomLabel{font-family:var(--mono);font-size:10px;color:var(--text-muted);min-width:36px;text-align:center;}
+
+.preview-iframe-wrapper {
+  flex:1;width:100%;height:100%;overflow:auto;background:#ffffff;
 }
 .preview-iframe{
-  width:100%;flex:1;border:none;background:#ffffff;
+  width:100%;height:100%;border:none;background:#ffffff;display:block;
 }
 
 .diagnostics-container{
@@ -238,7 +251,7 @@ footer b{color:var(--text-primary);font-weight:600}
       </div>
       <div class="form-group">
         <label for="inputBatch">Batch</label>
-        <input type="text" id="inputBatch" placeholder="e.g. 2024-2028" required>
+        <input type="text" id="inputBatch" placeholder="e.g. 1, 2, etc." required>
       </div>
       <div class="form-group">
         <label for="inputActivity">Activity / Web Page Being Built</label>
@@ -254,7 +267,7 @@ footer b{color:var(--text-primary);font-weight:600}
   <div class="brand">
     <div class="brand-mark">&lt;/&gt;</div>
     <div>
-      <h1>Live viewer</h1>
+      <h1 id="headerTitle">Live viewer</h1>
     </div>
   </div>
 
@@ -298,8 +311,18 @@ footer b{color:var(--text-primary);font-weight:600}
   <section class="right-pane">
     
     <div class="preview-container">
-      <div class="pane-title">Live Output Visualization</div>
-      <iframe class="preview-iframe" id="livePreview"></iframe>
+      <div class="pane-title">
+        <span>Live Output Visualization</span>
+        <div class="zoom-controls">
+          <button type="button" id="zoomOutBtn" class="zoom-btn" title="Zoom Out">-</button>
+          <span id="zoomLabel">100%</span>
+          <button type="button" id="zoomInBtn" class="zoom-btn" title="Zoom In">+</button>
+          <button type="button" id="zoomResetBtn" class="zoom-btn" title="Reset Zoom">Reset</button>
+        </div>
+      </div>
+      <div class="preview-iframe-wrapper">
+        <iframe class="preview-iframe" id="livePreview"></iframe>
+      </div>
     </div>
 
     <div class="diagnostics-container">
@@ -366,6 +389,12 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
+// Format Date as DD Mon YYYY (e.g., 13 Aug 2026)
+function getFormattedDate(d) {
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+}
+
 // Student Details Submission & Title Bar Update
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
@@ -376,15 +405,17 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
 
   if(!name || !reg || !batch || !activity) return;
 
-  // Set Title Bar: Activity - Name (Regno)
-  document.title = activity + " - " + name + " (" + reg + ")";
+  var titleString = activity + " - " + name + " (" + reg + ")";
+  
+  document.title = titleString;
+  document.getElementById("headerTitle").textContent = titleString;
 
   startTime = new Date();
   document.getElementById("dispName").textContent = name;
   document.getElementById("dispReg").textContent = reg;
   document.getElementById("dispBatch").textContent = batch;
   document.getElementById("dispActivity").textContent = activity;
-  document.getElementById("dispDate").textContent = startTime.toLocaleDateString();
+  document.getElementById("dispDate").textContent = getFormattedDate(startTime);
   document.getElementById("dispLoaded").textContent = startTime.toLocaleTimeString();
   
   document.getElementById("studentMeta").style.display = "flex";
@@ -398,10 +429,13 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
 });
 
 /* ============================================================
-   RELOAD / EXIT CONFIRMATION PROMPT
+   RELOAD / EXIT CONFIRMATION PROMPT (SITE-WIDE REFRESH ONLY)
    ============================================================ */
+var isUpdatingPreview = false;
+
 window.addEventListener("beforeunload", function (e) {
-  // Triggers browser confirmation dialog when reloading or exiting
+  if (isUpdatingPreview) return;
+  
   e.preventDefault();
   e.returnValue = "Are you sure you want to reload or leave? Your current work and logs will be lost.";
   return e.returnValue;
@@ -819,6 +853,8 @@ var statusLineEl = document.getElementById("statusLine");
 var charCountEl = document.getElementById("charCount");
 var livePreview = document.getElementById("livePreview");
 
+var currentZoom = 1.0;
+
 function updateGutter(){
   var lines = codeEl.value.split("\n").length;
   var out = "";
@@ -828,6 +864,7 @@ function updateGutter(){
 }
 
 function updateLivePreview(){
+  isUpdatingPreview = true;
   var rawCode = codeEl.value;
   
   // Format Windows local paths (D:\KITS\...) into valid browser URLs (file:///D:/KITS/...)
@@ -837,8 +874,41 @@ function updateLivePreview(){
   });
 
   var baseUrl = '<base href="https://titusissac.github.io/25CS208/">';
-  livePreview.srcdoc = baseUrl + processedCode;
+  var zoomStyle = '<style>html { zoom: ' + currentZoom + '; transform-origin: 0 0; } body { overflow: auto; margin: 8px; }</style>';
+  livePreview.srcdoc = baseUrl + zoomStyle + processedCode;
+
+  setTimeout(function() {
+    isUpdatingPreview = false;
+  }, 50);
 }
+
+/* ============================================================
+   ZOOM CONTROLS HANDLERS
+   ============================================================ */
+document.getElementById("zoomInBtn").addEventListener("click", function(){
+  if (currentZoom < 3.0) {
+    currentZoom = Math.round((currentZoom + 0.1) * 10) / 10;
+    document.getElementById("zoomLabel").textContent = Math.round(currentZoom * 100) + "%";
+    updateLivePreview();
+    logEvent("Output view zoomed to " + Math.round(currentZoom * 100) + "%", "info");
+  }
+});
+
+document.getElementById("zoomOutBtn").addEventListener("click", function(){
+  if (currentZoom > 0.5) {
+    currentZoom = Math.round((currentZoom - 0.1) * 10) / 10;
+    document.getElementById("zoomLabel").textContent = Math.round(currentZoom * 100) + "%";
+    updateLivePreview();
+    logEvent("Output view zoomed to " + Math.round(currentZoom * 100) + "%", "info");
+  }
+});
+
+document.getElementById("zoomResetBtn").addEventListener("click", function(){
+  currentZoom = 1.0;
+  document.getElementById("zoomLabel").textContent = "100%";
+  updateLivePreview();
+  logEvent("Output view zoom reset to 100%", "info");
+});
 
 codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
 codeEl.addEventListener("input", function(){
