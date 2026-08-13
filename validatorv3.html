@@ -83,7 +83,7 @@ header{
 .btn-ghost{background:transparent;border-color:var(--border);color:var(--text-muted)}
 .btn-ghost:hover{color:var(--text-primary);border-color:var(--text-dim);background:var(--bg-raised)}
 
-/* ===== Workspace (Updated: 60% Editor / 40% Visualizer & Logs) ===== */
+/* ===== Workspace Layout (60% Editor / 40% Right Pane) ===== */
 .workspace{
   height:calc(100vh - 88px); /* 56px Header + 32px Footer */
   display:grid;grid-template-columns: calc(60% - 1px) 1px 40%;
@@ -366,7 +366,7 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
-// Student Details Submission & Date Display Handler
+// Student Details Submission & Title Bar Update
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var name = document.getElementById("inputName").value.trim();
@@ -375,6 +375,9 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
   var activity = document.getElementById("inputActivity").value.trim();
 
   if(!name || !reg || !batch || !activity) return;
+
+  // Set Title Bar: Activity - Name (Regno)
+  document.title = activity + " - " + name + " (" + reg + ")";
 
   startTime = new Date();
   document.getElementById("dispName").textContent = name;
@@ -392,6 +395,16 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
   logEvent("Session initialized for " + name + " (" + reg + ")", "info");
   logEvent("Web Page / Activity: " + activity, "info");
   logEvent("Live viewer ready.", "info");
+});
+
+/* ============================================================
+   RELOAD / EXIT CONFIRMATION PROMPT
+   ============================================================ */
+window.addEventListener("beforeunload", function (e) {
+  // Triggers browser confirmation dialog when reloading or exiting
+  e.preventDefault();
+  e.returnValue = "Are you sure you want to reload or leave? Your current work and logs will be lost.";
+  return e.returnValue;
 });
 
 /* ============================================================
@@ -814,7 +827,6 @@ function updateGutter(){
   charCountEl.textContent = lines + (lines===1?" line":" lines");
 }
 
-// Automatically Normalizes Windows Local Image File Paths
 function updateLivePreview(){
   var rawCode = codeEl.value;
   
