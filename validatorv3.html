@@ -73,10 +73,10 @@ header{
 }
 .student-meta span b{color:var(--accent)}
 
-.header-actions{display:flex;align-items:center;gap:10px}
+.header-actions{display:flex;align-items:center;gap:8px}
 .btn{
   font-family:var(--mono);font-size:12px;font-weight:600;border-radius:6px;border:1px solid transparent;
-  padding:8px 14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+  padding:8px 12px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
 }
 .btn-primary{background:var(--accent);color:#ffffff}
 .btn-primary:hover{background:#0369a1}
@@ -119,10 +119,9 @@ textarea{
 .minimap .tick.error{background:var(--error)}
 .minimap .tick.warning{background:var(--warning)}
 
-/* ===== Right Pane (Visualizer + Diagnostics + Activity Log) ===== */
+/* ===== Right Pane ===== */
 .right-pane{display:flex;flex-direction:column;background:var(--bg-panel);min-width:0;height:100%;overflow:hidden}
 
-/* Live Visualization Section */
 .preview-container{
   height:32%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);
 }
@@ -130,7 +129,6 @@ textarea{
   width:100%;flex:1;border:none;background:#ffffff;
 }
 
-/* Diagnostics Section */
 .diagnostics-container{
   flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--border);
 }
@@ -177,7 +175,6 @@ textarea{
 .empty-state .glyph{font-size:24px;color:var(--ok)}
 .empty-state p{font-size:11.5px;margin:0}
 
-/* Event Log Section (Right Bottom) */
 .log-container{
   height:180px;display:flex;flex-direction:column;background:var(--bg-raised);
 }
@@ -191,13 +188,31 @@ textarea{
 .log-msg.err{color:var(--error);font-weight:600}
 .log-msg.info{color:var(--accent)}
 
-/* ===== Footer ===== */
 footer{
   height:32px;background:var(--bg-panel);border-top:1px solid var(--border);
   display:flex;align-items:center;justify-content:center;padding:0 20px;
   font-family:var(--mono);font-size:11px;color:var(--text-muted);
 }
 footer b{color:var(--text-primary);font-weight:600}
+
+/* ===== PRINT STYLES ===== */
+#printArea { display: none; }
+@media print {
+  body > *:not(#printArea) { display: none !important; }
+  #printArea {
+    display: block !important;
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: #ffffff; color: #0f172a; padding: 24px;
+    font-family: var(--sans); font-size: 13px; line-height: 1.5;
+  }
+  #printArea h1 { font-size: 20px; margin: 0 0 4px 0; }
+  #printArea h3 { font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  #printArea table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
+  #printArea table td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+  #printArea pre { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+  #printArea ol { padding-left: 20px; font-family: var(--mono); font-size: 11px; }
+  #printArea li { margin-bottom: 4px; }
+}
 
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -227,7 +242,7 @@ footer b{color:var(--text-primary);font-weight:600}
       </div>
       <div class="form-group">
         <label for="inputActivity">Activity / Web Page Being Built</label>
-        <input type="text" id="inputActivity" placeholder="e.g. Portfolio Page Lab 1" required>
+        <input type="text" id="inputActivity" placeholder="e.g. Image Tag Lab Exercise" required>
       </div>
       <button type="submit" class="submit-btn">Start Session</button>
     </form>
@@ -253,6 +268,7 @@ footer b{color:var(--text-primary);font-weight:600}
   </div>
 
   <div class="header-actions">
+    <button class="btn btn-ghost" id="printBtn">🖨 Print Report</button>
     <button class="btn btn-ghost" id="clearBtn">Clear</button>
     <button class="btn btn-primary" id="analyzeBtn">▸ Analyze</button>
   </div>
@@ -280,13 +296,11 @@ footer b{color:var(--text-primary);font-weight:600}
   <!-- Right: Visualizer, Diagnostics, Activity Log -->
   <section class="right-pane">
     
-    <!-- 1. Live Render Output -->
     <div class="preview-container">
       <div class="pane-title">Live Output Visualization</div>
       <iframe class="preview-iframe" id="livePreview"></iframe>
     </div>
 
-    <!-- 2. HTML Rules & Diagnostics -->
     <div class="diagnostics-container">
       <div class="pane-title">HTML Diagnostics</div>
       <div class="summary">
@@ -305,7 +319,6 @@ footer b{color:var(--text-primary);font-weight:600}
       </div>
     </div>
 
-    <!-- 3. Event Log Pane (Right Bottom) -->
     <div class="log-container">
       <div class="pane-title">Session & Activity Log</div>
       <div class="log-body" id="logBody"></div>
@@ -319,6 +332,9 @@ footer b{color:var(--text-primary);font-weight:600}
 <footer>
   <span>© All Rights Reserved | <b>Dr. Titus</b></span>
 </footer>
+
+<!-- Print Container -->
+<div id="printArea"></div>
 
 <script>
 /* ============================================================
@@ -349,7 +365,7 @@ function updateDuration() {
   document.getElementById("dispDuration").textContent = hrs + ":" + mins + ":" + secs;
 }
 
-// Student & Activity Details Form Submit Handler
+// Student Details Submission
 document.getElementById("studentForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var name = document.getElementById("inputName").value.trim();
@@ -372,12 +388,12 @@ document.getElementById("studentForm").addEventListener("submit", function(e) {
   timerInterval = setInterval(updateDuration, 1000);
 
   logEvent("Session initialized for " + name + " (" + reg + ")", "info");
-  logEvent("Building Web Page / Activity: " + activity, "info");
+  logEvent("Web Page / Activity: " + activity, "info");
   logEvent("Live viewer ready.", "info");
 });
 
 /* ============================================================
-   EVENT & SECURITY CONTROLS (COPY / CUT / PASTE / FOCUS / RESIZE)
+   EVENT & SECURITY CONTROLS (PASTE LOGGING, COPY, FOCUS, RESIZE)
    ============================================================ */
 
 document.addEventListener("copy", function(e) {
@@ -389,9 +405,21 @@ document.addEventListener("cut", function(e) {
   logEvent("Cut attempted (Disabled)", "err");
 });
 
+// Enabled Paste with Content Capture and Logging
 document.addEventListener("paste", function(e) {
-  e.preventDefault();
-  logEvent("Paste attempted (Disabled)", "err");
+  var pastedText = "";
+  if (e.clipboardData && e.clipboardData.getData) {
+    pastedText = e.clipboardData.getData('text/plain');
+  } else if (window.clipboardData && window.clipboardData.getData) {
+    pastedText = window.clipboardData.getData('Text');
+  }
+  
+  if (pastedText) {
+    var previewText = pastedText.length > 100 ? pastedText.substring(0, 100) + "... [truncated]" : pastedText;
+    logEvent("Pasted Content: \"" + previewText.replace(/\r?\n|\r/g, " ") + "\"", "warn");
+  } else {
+    logEvent("Paste action executed.", "info");
+  }
 });
 
 window.addEventListener("blur", function() {
@@ -410,13 +438,76 @@ document.addEventListener("visibilitychange", function() {
   }
 });
 
-// Explicit Resizing Activity Log Handler
 var resizeTimeout;
 window.addEventListener("resize", function() {
   clearTimeout(resizeTimeout);
   resizeTimeout = setTimeout(function() {
     logEvent("Resizing activity detected (" + window.innerWidth + "x" + window.innerHeight + "px)", "warn");
   }, 350);
+});
+
+/* ============================================================
+   PRINT REPORT GENERATOR
+   ============================================================ */
+document.getElementById("printBtn").addEventListener("click", function() {
+  var printArea = document.getElementById("printArea");
+  var result = validate(codeEl.value);
+  
+  var name = document.getElementById("dispName").textContent;
+  var reg = document.getElementById("dispReg").textContent;
+  var batch = document.getElementById("dispBatch").textContent;
+  var activity = document.getElementById("dispActivity").textContent;
+  var loaded = document.getElementById("dispLoaded").textContent;
+  var duration = document.getElementById("dispDuration").textContent;
+  
+  var errors = result.issues.filter(function(i){ return i.sev === "error"; });
+  var warnings = result.issues.filter(function(i){ return i.sev === "warning"; });
+
+  var html = '<h1>Live viewer — Evaluation & Activity Summary Report</h1>';
+  html += '<p style="margin-top:0; color:#64748b; font-size:11px;">Evaluation Session Generated on ' + new Date().toLocaleString() + '</p>';
+  
+  html += '<h3>Student & Session Information</h3>';
+  html += '<table>';
+  html += '<tr><td><b>Student Name:</b> ' + escapeHtml(name) + '</td><td><b>Reg No:</b> ' + escapeHtml(reg) + '</td></tr>';
+  html += '<tr><td><b>Batch:</b> ' + escapeHtml(batch) + '</td><td><b>Activity / Page:</b> ' + escapeHtml(activity) + '</td></tr>';
+  html += '<tr><td><b>Session Started:</b> ' + escapeHtml(loaded) + '</td><td><b>Total Duration:</b> ' + escapeHtml(duration) + '</td></tr>';
+  html += '</table>';
+
+  html += '<h3>HTML Structural Diagnostics</h3>';
+  html += '<p>Total Errors: <b style="color:#dc2626;">' + errors.length + '</b> | Total Warnings: <b style="color:#d97706;">' + warnings.length + '</b> | Rules Checked: <b>' + result.rulesChecked + '</b></p>';
+  
+  if (result.issues.length > 0) {
+    html += '<p><b>Detected Diagnostic Issues:</b></p><ul>';
+    result.issues.forEach(function(iss) {
+      html += '<li><b>Line ' + iss.line + ' [' + iss.sev.toUpperCase() + ' - ' + iss.rule + ']:</b> ' + iss.msg + '</li>';
+    });
+    html += '</ul>';
+  } else {
+    html += '<p><i>✓ No structural HTML errors or warnings detected.</i></p>';
+  }
+
+  html += '<h3>Submitted HTML Code</h3>';
+  html += '<pre>' + (escapeHtml(codeEl.value) || '<!-- No Code Entered -->') + '</pre>';
+
+  html += '<h3>Session & Activity Log</h3>';
+  var logItems = document.querySelectorAll("#logBody .log-item");
+  if (logItems.length > 0) {
+    html += '<ol>';
+    logItems.forEach(function(item) {
+      html += '<li>' + escapeHtml(item.innerText) + '</li>';
+    });
+    html += '</ol>';
+  } else {
+    html += '<p><i>No session activities recorded.</i></p>';
+  }
+
+  html += '<footer style="margin-top:30px; border-top:1px solid #e2e8f0; padding-top:10px; font-size:11px; text-align:center; color:#64748b;">';
+  html += '© All Rights Reserved | <b>Dr. Titus</b>';
+  html += '</footer>';
+
+  printArea.innerHTML = html;
+  logEvent("Print report requested", "info");
+  window.print();
 });
 
 /* ============================================================
@@ -722,7 +813,8 @@ function updateGutter(){
 }
 
 function updateLivePreview(){
-  livePreview.srcdoc = codeEl.value;
+  var baseUrl = '<base href="https://titusissac.github.io/25CS208/">';
+  livePreview.srcdoc = baseUrl + codeEl.value;
 }
 
 codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
@@ -826,7 +918,6 @@ document.getElementById("analyzeBtn").addEventListener("click", function(){
   logEvent("Manual diagnostic analysis executed.", "info");
 });
 
-// Clear Button with Confirmation Prompt
 document.getElementById("clearBtn").addEventListener("click", function(){
   var confirmed = confirm("Are you sure you want to clear the editor?");
   if (confirmed) {
