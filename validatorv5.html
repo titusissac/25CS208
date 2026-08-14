@@ -654,9 +654,14 @@ document.getElementById("printBtn").addEventListener("click", async function() {
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
+      scale: 1,
       logging: false
     });
-    toolImgData = fullToolCanvas.toDataURL("image/png");
+    // JPEG at 0.8 quality keeps the data URI small — very large base64 PNGs
+    // (multi-MB, common at retina scale) can silently fail to paint in
+    // Chrome's print pipeline even though they display fine on-screen.
+    toolImgData = fullToolCanvas.toDataURL("image/jpeg", 0.8);
+    logEvent("Tool screenshot captured (~" + Math.round(toolImgData.length / 1024) + " KB, " + fullToolCanvas.width + "x" + fullToolCanvas.height + ")", "info");
   } catch (err) {
     console.error("Failed to capture full tool screenshot:", err);
     logEvent("Full tool screenshot failed: " + err.message, "err");
@@ -677,9 +682,11 @@ document.getElementById("printBtn").addEventListener("click", async function() {
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
+      scale: 1,
       logging: false
     });
-    outputImgData = outputCanvas.toDataURL("image/png");
+    outputImgData = outputCanvas.toDataURL("image/jpeg", 0.8);
+    logEvent("Output screenshot captured (~" + Math.round(outputImgData.length / 1024) + " KB, " + outputCanvas.width + "x" + outputCanvas.height + ")", "info");
   } catch (err) {
     console.error("Failed to capture output screenshot:", err);
     logEvent("Output screenshot failed: " + err.message, "err");
@@ -770,6 +777,23 @@ document.getElementById("printBtn").addEventListener("click", async function() {
     html += '</footer>';
 
     printArea.innerHTML = html;
+
+    // Freshly inserted <img> elements (even with data: URIs) aren't guaranteed
+    // to be decoded/painted yet. window.print() snapshots the current render
+    // state, so calling it too early can print blank space where the image
+    // will eventually go. Wait for every image in the report to finish
+    // loading (or fail) before printing.
+    var reportImages = Array.prototype.slice.call(printArea.querySelectorAll("img"));
+    await Promise.all(reportImages.map(function(img) {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(function(resolve) {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+      });
+    }));
+    // Extra paint tick so the browser has actually committed the layout.
+    await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
+
     logEvent("Print report generated with screenshots.", "info");
     window.print();
   } catch (err) {
